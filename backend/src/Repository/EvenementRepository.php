@@ -2,17 +2,9 @@
 
 namespace App\Repository;
 
-use App\Entity\Evenement;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\Persistence\ManagerRegistry;
+use App\Document\Evenement;
+use Doctrine\ODM\MongoDB\Repository\DocumentRepository;
 
-/**
- * @extends ServiceEntityRepository<Evenement>
- */
-class EvenementRepository extends ServiceEntityRepository
+class EvenementRepository extends DocumentRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
-        parent::__construct($registry, Evenement::class);
-    }
 }

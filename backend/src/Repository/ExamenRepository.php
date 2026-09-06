@@ -2,17 +2,9 @@
 
 namespace App\Repository;
 
-use App\Entity\Examen;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\Persistence\ManagerRegistry;
+use App\Document\Examen;
+use Doctrine\ODM\MongoDB\Repository\DocumentRepository;
 
-/**
- * @extends ServiceEntityRepository<Examen>
- */
-class ExamenRepository extends ServiceEntityRepository
+class ExamenRepository extends DocumentRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
-        parent::__construct($registry, Examen::class);
-    }
 }

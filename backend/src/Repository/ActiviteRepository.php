@@ -2,17 +2,9 @@
 
 namespace App\Repository;
 
-use App\Entity\Activite;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\Persistence\ManagerRegistry;
+use App\Document\Activite;
+use Doctrine\ODM\MongoDB\Repository\DocumentRepository;
 
-/**
- * @extends ServiceEntityRepository<Activite>
- */
-class ActiviteRepository extends ServiceEntityRepository
+class ActiviteRepository extends DocumentRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
-        parent::__construct($registry, Activite::class);
-    }
 }

@@ -2,17 +2,9 @@
 
 namespace App\Repository;
 
-use App\Entity\Formation;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\Persistence\ManagerRegistry;
+use App\Document\Formation;
+use Doctrine\ODM\MongoDB\Repository\DocumentRepository;
 
-/**
- * @extends ServiceEntityRepository<Formation>
- */
-class FormationRepository extends ServiceEntityRepository
+class FormationRepository extends DocumentRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
-        parent::__construct($registry, Formation::class);
-    }
 }
