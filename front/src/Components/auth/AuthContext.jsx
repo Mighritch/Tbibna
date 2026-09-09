@@ -16,6 +16,9 @@ export function AuthProvider({ children }) {
       .then((data) => {
         if (data && !data.error) setUser(data);
       })
+      .catch(() => {
+        // Pas grave : simplement pas de session active
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -40,11 +43,18 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await fetch("/api/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-    setUser(null);
+    try {
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      // On log l'erreur mais on continue quand même la déconnexion côté front
+      console.error("Erreur lors de la déconnexion côté serveur :", err);
+    } finally {
+      // Toujours nettoyer l'état local, même si la requête serveur échoue
+      setUser(null);
+    }
   };
 
   return (

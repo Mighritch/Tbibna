@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
+import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
 const NAV_LINKS = [
@@ -15,6 +16,8 @@ const NAV_LINKS = [
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, loading, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -29,6 +32,12 @@ export default function Navbar() {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <header className={`navbar ${scrolled ? "scrolled" : ""}`}>
@@ -52,15 +61,35 @@ export default function Navbar() {
 
         {/* Actions à droite (Grand Écran) & Toggle Hamburger (Petit Écran) */}
         <div className="navbar__right-actions">
-          {/* Boutons de connexion visibles uniquement sur grand écran */}
+          {/* Boutons de connexion / infos utilisateur visibles uniquement sur grand écran */}
           <div className="navbar__desktop-auth">
             <div className="navbar__divider" />
-            <Link to="/login" className="navbar__login">
-              Se connecter
-            </Link>
-            <Link to="/register" className="navbar__cta">
-              Créer un compte
-            </Link>
+
+            {loading ? null : user ? (
+              <>
+                <Link to="/profile" className="navbar__user">
+                  <UserIcon size={16} />
+                  <span>{user.prenom || user.nom}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="navbar__logout"
+                >
+                  <LogOut size={16} />
+                  Se déconnecter
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="navbar__login">
+                  Se connecter
+                </Link>
+                <Link to="/register" className="navbar__cta">
+                  Créer un compte
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Bouton Hamburger visible uniquement si la fenêtre est réduite */}
@@ -93,20 +122,43 @@ export default function Navbar() {
           </nav>
 
           <div className="navbar__mobile-actions">
-            <Link
-              to="/login"
-              onClick={() => setOpen(false)}
-              className="navbar__mobile-login"
-            >
-              Se connecter
-            </Link>
-            <Link
-              to="/register"
-              onClick={() => setOpen(false)}
-              className="navbar__mobile-cta"
-            >
-              Créer un compte
-            </Link>
+            {loading ? null : user ? (
+              <>
+                <Link
+                  to="/profile"
+                  onClick={() => setOpen(false)}
+                  className="navbar__mobile-login"
+                >
+                  <UserIcon size={16} style={{ marginRight: 8 }} />
+                  {user.prenom || user.nom}
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="navbar__mobile-cta navbar__mobile-logout"
+                >
+                  <LogOut size={16} style={{ marginRight: 8 }} />
+                  Se déconnecter
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setOpen(false)}
+                  className="navbar__mobile-login"
+                >
+                  Se connecter
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setOpen(false)}
+                  className="navbar__mobile-cta"
+                >
+                  Créer un compte
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

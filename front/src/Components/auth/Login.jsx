@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { 
   Stethoscope, 
@@ -14,6 +14,8 @@ import {
 
 export default function Login() {
   const { login } = useAuth();
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -67,9 +69,20 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password, rememberMe);
+      const data = await login(email, password, rememberMe);
       setSuccess("Connexion réussie ! Redirection...");
-      // navigate("/dashboard");
+
+      // Redirection selon le rôle renvoyé par l'API
+      const role = data?.user?.role;
+      setTimeout(() => {
+        if (role === "ROLE_MEDECIN") {
+          navigate("/dashboard/medecin");
+        } else if (role === "ROLE_ETUDIANT") {
+          navigate("/dashboard/etudiant");
+        } else {
+          navigate("/");
+        }
+      }, 800); // Petit délai pour afficher le message de succès
     } catch (err) {
       setError(err.message || "Identifiants incorrects. Veuillez réessayer.");
     } finally {
