@@ -1,4 +1,4 @@
-/* ===== Navbar – Full width ===== */
+/* ===== Navbar Base ===== */
 
 .navbar {
   position: sticky;
@@ -8,7 +8,7 @@
   width: 100%;
   z-index: 50;
   border-bottom: 1px solid transparent;
-  background-color: rgba(224, 242, 254, 0.75); /* bleu clair */
+  background-color: rgba(224, 242, 254, 0.75);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: all 0.3s ease;
@@ -16,13 +16,10 @@
 
 .navbar.scrolled {
   border-bottom-color: rgba(186, 230, 253, 0.8);
-  background-color: rgba(224, 242, 254, 0.92); /* bleu clair plus opaque */
+  background-color: rgba(224, 242, 254, 0.92);
   box-shadow: 0 4px 24px -4px rgba(14, 116, 144, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
 }
 
-/* Conteneur interne – full width */
 .navbar__container {
   position: relative;
   width: min(100%, 1240px);
@@ -40,32 +37,14 @@
   }
 }
 
-@media (min-width: 1024px) {
-  .navbar__container {
-    padding: 0 36px;
-  }
-}
-
-@media (min-width: 1280px) {
-  .navbar__container {
-    padding: 0 24px;
-  }
-}
-
 /* ===== Logo ===== */
 
 .navbar__logo {
   display: flex;
-  flex-shrink: 0;
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  transition: opacity 0.2s ease;
   z-index: 2;
-}
-
-.navbar__logo:hover {
-  opacity: 0.9;
 }
 
 .navbar__logo-icon {
@@ -77,52 +56,42 @@
   border-radius: 12px;
   overflow: hidden;
   background-color: #0f3d3e;
-  box-shadow: 0 5px 14px rgba(15, 61, 62, 0.16);
-  transition: transform 0.3s ease;
 }
 
 .navbar__logo-icon img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
-}
-
-.navbar__logo:hover .navbar__logo-icon {
-  transform: scale(1.05);
 }
 
 .navbar__logo-text {
   font-family: "Playfair Display", Georgia, serif;
   font-size: 1.35rem;
   font-weight: 500;
-  letter-spacing: -0.01em;
   color: #0f3d3e;
 }
 
-/* ===== Desktop nav links (centrés parfaitement) ===== */
+/* ===== Navigation Desktop (Grand Écran) ===== */
 
-.navbar__nav {
-  display: none;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+.navbar__nav-desktop {
+  display: none; /* Masqué par défaut */
   align-items: center;
-  gap: 28px; /* ← augmenté (était 6px) */
-  white-space: nowrap;
+  gap: 20px;
 }
 
-@media (min-width: 768px) {
-  .navbar__nav {
-    display: flex;
+@media (min-width: 992px) {
+  .navbar__nav-desktop {
+    display: flex; /* Affiché sur grand écran */
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
   }
 }
 
 .navbar__link {
-  flex-shrink: 0;
   border-radius: 999px;
-  padding: 8px 18px; /* ← un peu plus d’espace horizontal aussi */
+  padding: 8px 16px;
   font-size: 14.5px;
   font-weight: 500;
   color: #3c3a34;
@@ -135,21 +104,13 @@
   color: #0f3d3e;
 }
 
-/* ===== Desktop actions ===== */
+/* ===== Actions Droite (Langue + Connexion) ===== */
 
-.navbar__actions {
-  display: none;
-  flex-shrink: 0;
+.navbar__right-actions {
+  display: flex;
   align-items: center;
   gap: 12px;
-  white-space: nowrap;
   z-index: 2;
-}
-
-@media (min-width: 768px) {
-  .navbar__actions {
-    display: flex;
-  }
 }
 
 .navbar__lang-btn {
@@ -161,16 +122,21 @@
   font-size: 13px;
   font-weight: 500;
   color: #5c5a54;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.navbar__lang-btn:hover {
-  background-color: rgba(15, 61, 62, 0.05);
-  color: #0f3d3e;
+.navbar__desktop-auth {
+  display: none; /* Masqué par défaut sur fenêtre réduite */
+  align-items: center;
+  gap: 12px;
+}
+
+@media (min-width: 992px) {
+  .navbar__desktop-auth {
+    display: flex; /* Affiché sur grand écran */
+  }
 }
 
 .navbar__divider {
-  margin: 0 4px;
   height: 20px;
   width: 1px;
   background-color: #e4dfd3;
@@ -183,11 +149,6 @@
   font-weight: 500;
   color: #0f3d3e;
   text-decoration: none;
-  transition: background-color 0.2s ease;
-}
-
-.navbar__login:hover {
-  background-color: rgba(15, 61, 62, 0.05);
 }
 
 .navbar__cta {
@@ -198,26 +159,14 @@
   font-weight: 500;
   color: #fbf9f4;
   text-decoration: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
-.navbar__cta:hover {
-  background-color: #0b2d2e;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.navbar__cta:active {
-  transform: scale(0.98);
-}
-
-/* ===== Mobile toggle ===== */
+/* ===== Bouton Hamburger (Fenêtre Réduite) ===== */
 
 .navbar__toggle {
-  display: flex;
+  display: flex; /* Visibilité par défaut quand l'onglet est diminué */
   height: 40px;
   width: 40px;
-  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border: none;
@@ -225,21 +174,15 @@
   cursor: pointer;
   border-radius: 8px;
   color: #0f3d3e;
-  transition: background-color 0.2s ease;
-  z-index: 2;
 }
 
-.navbar__toggle:hover {
-  background-color: rgba(15, 61, 62, 0.06);
-}
-
-@media (min-width: 768px) {
+@media (min-width: 992px) {
   .navbar__toggle {
-    display: none;
+    display: none; /* Caché sur grand écran */
   }
 }
 
-/* ===== Mobile menu ===== */
+/* ===== Menu Mobile / Fenêtre Réduite ===== */
 
 .navbar__mobile-menu {
   overflow: hidden;
@@ -250,20 +193,19 @@
 }
 
 .navbar__mobile-menu.open {
-  max-height: 420px;
+  max-height: 480px;
   opacity: 1;
   border-top-color: rgba(186, 230, 253, 0.75);
 }
 
-@media (min-width: 768px) {
+@media (min-width: 992px) {
   .navbar__mobile-menu {
-    display: none;
+    display: none; /* Empêche le menu hamburger de s'ouvrir sur grand écran */
   }
 }
 
 .navbar__mobile-inner {
-  border-top: 1px solid rgba(186, 230, 253, 0.8);
-  background-color: #e0f2fe; /* bleu clair */
+  background-color: #e0f2fe;
 }
 
 .navbar__mobile-nav {
@@ -280,7 +222,6 @@
   font-weight: 500;
   color: #3c3a34;
   text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .navbar__mobile-link:hover {
@@ -304,11 +245,7 @@
   font-weight: 500;
   color: #0f3d3e;
   text-decoration: none;
-  transition: background-color 0.2s ease;
-}
-
-.navbar__mobile-login:hover {
-  background-color: rgba(15, 61, 62, 0.05);
+  border: 1px solid rgba(15, 61, 62, 0.2);
 }
 
 .navbar__mobile-cta {
@@ -320,10 +257,4 @@
   font-weight: 500;
   color: #fbf9f4;
   text-decoration: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease;
-}
-
-.navbar__mobile-cta:hover {
-  background-color: #0b2d2e;
 }

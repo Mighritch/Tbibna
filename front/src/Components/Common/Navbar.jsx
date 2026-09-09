@@ -33,7 +33,7 @@ export default function Navbar() {
   return (
     <header className={`navbar ${scrolled ? "scrolled" : ""}`}>
       <div className="navbar__container">
-        {/* Logo */}
+        {/* Logo à gauche */}
         <Link to="/" className="navbar__logo">
           <span className="navbar__logo-icon">
             <img src="/assets/logo.jpg" alt="Tbibna" />
@@ -41,8 +41,8 @@ export default function Navbar() {
           <span className="navbar__logo-text">Tbibna</span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="navbar__nav">
+        {/* Liens de navigation (Visibles uniquement sur Grand Écran) */}
+        <nav className="navbar__nav-desktop">
           {NAV_LINKS.map((link) => (
             <a key={link.label} href={link.href} className="navbar__link">
               {link.label}
@@ -50,36 +50,33 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* Desktop actions */}
-        <div className="navbar__actions">
-          <button type="button" className="navbar__lang-btn">
-            FR / AR
+        {/* Actions à droite (Grand Écran) & Toggle Hamburger (Petit Écran) */}
+        <div className="navbar__right-actions">
+          {/* Boutons de connexion visibles uniquement sur grand écran */}
+          <div className="navbar__desktop-auth">
+            <div className="navbar__divider" />
+            <Link to="/login" className="navbar__login">
+              Se connecter
+            </Link>
+            <Link to="/register" className="navbar__cta">
+              Créer un compte
+            </Link>
+          </div>
+
+          {/* Bouton Hamburger visible uniquement si la fenêtre est réduite */}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="navbar__toggle"
+            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-expanded={open}
+          >
+            {open ? <X size={24} strokeWidth={2} /> : <Menu size={24} strokeWidth={2} />}
           </button>
-
-          <div className="navbar__divider" />
-
-          <Link to="/login" className="navbar__login">
-            Se connecter
-          </Link>
-
-          <Link to="/register" className="navbar__cta">
-            Créer un compte
-          </Link>
         </div>
-
-        {/* Mobile toggle */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="navbar__toggle"
-          aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-          aria-expanded={open}
-        >
-          {open ? <X size={22} strokeWidth={2} /> : <Menu size={22} strokeWidth={2} />}
-        </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Menu Hamburger déroulant (S'affiche au clic quand la fenêtre est réduite) */}
       <div className={`navbar__mobile-menu ${open ? "open" : ""}`}>
         <div className="navbar__mobile-inner">
           <nav className="navbar__mobile-nav">
@@ -108,7 +105,7 @@ export default function Navbar() {
               onClick={() => setOpen(false)}
               className="navbar__mobile-cta"
             >
-              Commencer
+              Créer un compte
             </Link>
           </div>
         </div>

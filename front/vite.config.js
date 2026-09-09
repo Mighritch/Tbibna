@@ -1,17 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite' // <-- 1. Import ajouté
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    tailwindcss(), // <-- 2. Plugin ajouté
+  ],
   server: {
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
-        // Ces deux lignes sont importantes pour les cookies de session
         cookieDomainRewrite: 'localhost',
-        // optionnel mais recommandé
         configure: (proxy) => {
           proxy.on('proxyRes', (proxyRes) => {
             const cookies = proxyRes.headers['set-cookie']
