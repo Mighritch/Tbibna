@@ -1,5 +1,5 @@
 /* ============================================
-   TBIBNA – Design System & Global Styles
+   TBIBNA – Unified Design System & Global Styles
    ============================================ */
 
 :root {
@@ -31,9 +31,14 @@
 
   /* Transitions */
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Reset léger */
+/* ============================================
+   Reset & Configuration de Base
+   ============================================ */
+
 *,
 *::before,
 *::after {
@@ -42,10 +47,12 @@
 
 html {
   scroll-behavior: smooth;
+  min-width: 320px;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, sans-serif;
   background-color: var(--bg);
@@ -59,6 +66,97 @@ body {
 .font-serif {
   font-family: "Playfair Display", "Libre Baskerville", Georgia, serif;
 }
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+a:hover {
+  color: var(--primary-hover);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================
+   Keyframes Animations
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+/* Utility Animation Classes */
+.animate-fadeIn { animation: fadeIn 0.5s var(--transition); }
+.animate-slideUp { animation: slideUp 0.6s var(--transition); }
+.animate-slideDown { animation: slideDown 0.4s var(--transition); }
+.animate-scaleIn { animation: scaleIn 0.5s var(--transition); }
+.animate-float { animation: float 4s ease-in-out infinite; }
 
 /* ============================================
    Boutons
@@ -79,6 +177,23 @@ body {
   cursor: pointer;
   transition: var(--transition);
   text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before,
+.btn-secondary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary:hover {
@@ -89,6 +204,11 @@ body {
 
 .btn-primary:active {
   transform: scale(0.98);
+}
+
+.btn-primary:active::before,
+.btn-secondary:active::before {
+  transform: translateX(100%);
 }
 
 .btn-secondary {
@@ -106,6 +226,8 @@ body {
   cursor: pointer;
   transition: var(--transition);
   text-decoration: none;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-secondary:hover {
@@ -114,7 +236,7 @@ body {
 }
 
 /* ============================================
-   Hero Section
+   Hero Section & Badges
    ============================================ */
 
 .hero-badge {
@@ -156,15 +278,6 @@ body {
   background: var(--accent);
 }
 
-@keyframes ping {
-  75%,
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-}
-
-/* Carte visuelle droite du hero */
 .hero-visual {
   position: relative;
   aspect-ratio: 4 / 3.2;
@@ -205,7 +318,6 @@ body {
   filter: blur(60px);
 }
 
-/* Badge flottant */
 .floating-badge {
   position: absolute;
   bottom: -20px;
@@ -221,18 +333,8 @@ body {
   animation: float 4s ease-in-out infinite;
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
 /* ============================================
-   Cards (spécialités + bénéfices)
+   Cards (Spécialités + Bénéfices)
    ============================================ */
 
 .card {
@@ -266,10 +368,6 @@ body {
   color: var(--gold);
   transform: scale(1.06);
 }
-
-/* ============================================
-   Section Spécialités
-   ============================================ */
 
 .specialty-card {
   position: relative;
@@ -307,10 +405,6 @@ body {
   transform: translateX(0);
 }
 
-/* ============================================
-   Stats mini-cards (dans le hero)
-   ============================================ */
-
 .stat-pill {
   flex: 1;
   text-align: center;
@@ -322,7 +416,7 @@ body {
 }
 
 /* ============================================
-   CTA Final
+   CTA Final & Footer
    ============================================ */
 
 .cta-section {
@@ -355,10 +449,6 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* ============================================
-   Footer
-   ============================================ */
-
 .footer {
   border-top: 1px solid var(--border);
   background: rgba(244, 240, 230, 0.6);
@@ -381,8 +471,20 @@ body {
   border-radius: 50%;
 }
 
+/* Skeleton Loading Effect */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 61, 62, 0.1) 25%,
+    rgba(15, 61, 62, 0.2) 50%,
+    rgba(15, 61, 62, 0.1) 75%
+  );
+  background-size: 1000px 100%;
+  animation: skeleton-loading 2s infinite;
+}
+
 /* ============================================
-   Utilitaires
+   Utilitaires & Accessibilité
    ============================================ */
 
 .container {
@@ -408,13 +510,44 @@ body {
   }
 }
 
-/* Smooth hover pour les liens */
-a {
-  transition: color 0.2s ease;
-}
-
-/* Sélection de texte élégante */
+/* Selection de texte */
 ::selection {
   background: rgba(62, 124, 106, 0.25);
   color: var(--primary);
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 61, 62, 0.25);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Accessibility Focus Visible */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Support pour la réduction des mouvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
