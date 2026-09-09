@@ -1,10 +1,8 @@
 security:
-    # Hashage des mots de passe pour votre document MongoDB User
     password_hashers:
         App\Document\User:
             algorithm: auto
 
-    # Provider configuré pour charger les utilisateurs depuis MongoDB via l'email
     providers:
         app_user_provider:
             mongodb:
@@ -16,53 +14,36 @@ security:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
 
-        # Pare-feu dédié aux routes API
         api:
             pattern: ^/api
             lazy: true
             provider: app_user_provider
+            stateless: false
             json_login:
-                check_path: api_login
+                check_path: /api/login
                 username_path: email
                 password_path: password
             logout:
-                path: api_logout
+                path: /api/logout
 
-        # Pare-feu web principal pour les formulaires HTML classiques
         main:
             lazy: true
             provider: app_user_provider
-
             form_login:
                 login_path: app_login
                 check_path: app_login
                 default_target_path: app_home
                 enable_csrf: true
-
             logout:
                 path: app_logout
                 target: app_login
 
-    # Les règles sont exécutées dans l'ordre du haut vers le bas
     access_control:
-        # Accès publics pour l'API
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/register, roles: PUBLIC_ACCESS }
-        # Protection générale des endpoints API
-        - { path: ^/api, roles: ROLE_USER }
+        - { path: ^/api/logout, roles: PUBLIC_ACCESS }
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
-        # Accès publics pour le web
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/register, roles: PUBLIC_ACCESS }
-        # Protection générale du reste du site web
-        - { path: ^/, roles: ROLE_USER }
-
-when@test:
-    security:
-        password_hashers:
-            # Réduction du coût d'implication de hashage pour accélérer les tests
-            App\Document\User:
-                algorithm: auto
-                cost: 4
-                time_cost: 3
-                memory_cost: 10
+        - { path: ^/, roles: IS_AUTHENTICATED_FULLY }
