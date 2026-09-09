@@ -2,6 +2,11 @@ import { Routes, Route } from "react-router-dom";
 import Navbar from "./Components/Common/Navbar";
 import Login from "./Components/auth/Login";
 import Register from "./Components/auth/Register";
+import ProtectedRoute from "./Components/auth/ProtectedRoute";
+import RoleRedirect from "./Components/auth/RoleRedirect";
+import DashboardEtudiant from "./Components/dashboard/DashboardEtudiant";
+import DashboardMedecin from "./Components/dashboard/DashboardMedecin";
+import Profile from "./Components/profile/Profile";
 import {
   BookOpen,
   Stethoscope,
@@ -342,6 +347,37 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* Redirection intelligente selon le rôle */}
+          <Route path="/dashboard" element={<RoleRedirect />} />
+
+          {/* Dashboards protégés par rôle */}
+          <Route
+            path="/dashboard/etudiant"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ETUDIANT"]}>
+                <DashboardEtudiant />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/medecin"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <DashboardMedecin />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Profil utilisateur (accessible aux deux rôles) */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
     </div>
