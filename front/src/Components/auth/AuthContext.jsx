@@ -7,18 +7,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Vérifie si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
     fetch("/api/me", {
-      credentials: "include", // important pour les cookies de session
+      credentials: "include",
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && !data.error) setUser(data);
       })
-      .catch(() => {
-        // Pas grave : simplement pas de session active
-      })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -31,6 +28,14 @@ export function AuthProvider({ children }) {
       credentials: "include",
       body: JSON.stringify({ email, password }),
     });
+
+    // Protection contre les réponses HTML (erreur 500 Symfony)
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await response.text();
+      console.error("Réponse non-JSON du serveur :", text.substring(0, 300));
+      throw new Error("Erreur serveur (500). Vérifiez les logs Symfony.");
+    }
 
     const data = await response.json();
 
@@ -49,10 +54,8 @@ export function AuthProvider({ children }) {
         credentials: "include",
       });
     } catch (err) {
-      // On log l'erreur mais on continue quand même la déconnexion côté front
       console.error("Erreur lors de la déconnexion côté serveur :", err);
     } finally {
-      // Toujours nettoyer l'état local, même si la requête serveur échoue
       setUser(null);
     }
   };
@@ -64,7 +67,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-// Hook personnalisé pour consommer le contexte facilement
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

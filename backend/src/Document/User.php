@@ -7,7 +7,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-#[ODM\Document(collection: "users", repositoryClass: UserRepository::class)]
+#[ODM\Document(collection: "users")]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ODM\Id]

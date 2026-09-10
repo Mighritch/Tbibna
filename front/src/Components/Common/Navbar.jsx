@@ -4,8 +4,7 @@ import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
-const NAV_LINKS = [
-  { label: "Cours", href: "#cours" },
+const BASE_NAV_LINKS = [
   { label: "Activités", href: "#activites" },
   { label: "Examens", href: "#examens" },
   { label: "Formations", href: "#formations" },
@@ -13,11 +12,26 @@ const NAV_LINKS = [
   { label: "À propos", href: "#a-propos" },
 ];
 
+// Construit la liste des liens de navigation selon le rôle de l'utilisateur.
+// - Médecin connecté : "Cours" mène vers la gestion de ses cours (/dashboard/medecin/cours)
+// - Tout le monde (visiteur, étudiant) : "Cours" mène vers la section publique #cours
+function getNavLinks(user) {
+  const isMedecin = user?.roles?.includes("ROLE_MEDECIN");
+
+  const coursLink = isMedecin
+    ? { label: "Cours", to: "/dashboard/medecin/cours" }
+    : { label: "Cours", href: "#cours" };
+
+  return [coursLink, ...BASE_NAV_LINKS];
+}
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
+
+  const navLinks = getNavLinks(user);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -52,11 +66,17 @@ export default function Navbar() {
 
         {/* Liens de navigation (Visibles uniquement sur Grand Écran) */}
         <nav className="navbar__nav-desktop">
-          {NAV_LINKS.map((link) => (
-            <a key={link.label} href={link.href} className="navbar__link">
-              {link.label}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.to ? (
+              <Link key={link.label} to={link.to} className="navbar__link">
+                {link.label}
+              </Link>
+            ) : (
+              <a key={link.label} href={link.href} className="navbar__link">
+                {link.label}
+              </a>
+            )
+          )}
         </nav>
 
         {/* Actions à droite (Grand Écran) & Toggle Hamburger (Petit Écran) */}
@@ -109,16 +129,27 @@ export default function Navbar() {
       <div className={`navbar__mobile-menu ${open ? "open" : ""}`}>
         <div className="navbar__mobile-inner">
           <nav className="navbar__mobile-nav">
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="navbar__mobile-link"
-              >
-                {link.label}
-              </a>
-            ))}
+            {navLinks.map((link) =>
+              link.to ? (
+                <Link
+                  key={link.label}
+                  to={link.to}
+                  onClick={() => setOpen(false)}
+                  className="navbar__mobile-link"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className="navbar__mobile-link"
+                >
+                  {link.label}
+                </a>
+              )
+            )}
           </nav>
 
           <div className="navbar__mobile-actions">

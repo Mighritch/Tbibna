@@ -3,8 +3,13 @@
 namespace App\Repository;
 
 use App\Document\Medecin;
-use Doctrine\ODM\MongoDB\Repository\DocumentRepository;
+use Doctrine\Bundle\MongoDBBundle\Repository\ServiceDocumentRepository;
+use Doctrine\Persistence\ManagerRegistry;
 
-class MedecinRepository extends DocumentRepository
+class MedecinRepository extends ServiceDocumentRepository
 {
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, Medecin::class);
+    }
 }

@@ -29,6 +29,19 @@ class Cours
     #[ODM\Field(type: "string")]
     private ?string $niveauCours = null;
 
+    // Référence vers le médecin qui a créé le cours
+    #[ODM\ReferenceOne(targetDocument: Medecin::class, storeAs: "id")]
+    private ?Medecin $medecin = null;
+
+    // Date de création (utile pour trier / afficher)
+    #[ODM\Field(type: "date")]
+    private ?\DateTime $dateCreation = null;
+
+    public function __construct()
+    {
+        $this->dateCreation = new \DateTime();
+    }
+
     public function getId(): ?string
     {
         return $this->id;
@@ -97,6 +110,28 @@ class Cours
     public function setNiveauCours(string $niveauCours): static
     {
         $this->niveauCours = $niveauCours;
+        return $this;
+    }
+
+    public function getMedecin(): ?Medecin
+    {
+        return $this->medecin;
+    }
+
+    public function setMedecin(?Medecin $medecin): static
+    {
+        $this->medecin = $medecin;
+        return $this;
+    }
+
+    public function getDateCreation(): ?\DateTime
+    {
+        return $this->dateCreation;
+    }
+
+    public function setDateCreation(\DateTime $dateCreation): static
+    {
+        $this->dateCreation = $dateCreation;
         return $this;
     }
 }

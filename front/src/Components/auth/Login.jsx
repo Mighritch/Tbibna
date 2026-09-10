@@ -69,7 +69,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const data = await login(email, password, rememberMe);
+      const data = await login(email, password);
       setSuccess("Connexion réussie ! Redirection...");
 
       // Redirection selon le rôle renvoyé par l'API
