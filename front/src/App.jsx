@@ -6,6 +6,8 @@ import ProtectedRoute from "./Components/auth/ProtectedRoute";
 import RoleRedirect from "./Components/auth/RoleRedirect";
 import DashboardEtudiant from "./Components/dashboard/DashboardEtudiant";
 import DashboardMedecin from "./Components/dashboard/DashboardMedecin";
+import AjouterCours from "./Components/medecin/AjouterCours";
+import MesCours from "./Components/dashboard/MesCours";
 import Profile from "./Components/profile/Profile";
 import {
   BookOpen,
@@ -13,7 +15,6 @@ import {
   Users,
   FileText,
   ArrowRight,
-  CheckCircle2,
   Play,
   Star,
   ShieldCheck,
@@ -96,7 +97,7 @@ function HomePage() {
               </div>
 
               <h1 className="font-serif text-4xl font-semibold leading-[1.15] text-[#0F3D3E] sm:text-5xl lg:text-6xl">
-                L’excellence médicale <br />
+                L'excellence médicale <br />
                 <span className="relative inline-block text-[#2A6B59]">
                   à portée de main.
                 </span>
@@ -179,30 +180,20 @@ function HomePage() {
                   </div>
 
                   {/* Badges de statistiques */}
-                  <div className="grid grid-cols-3 gap-2 rounded-2xl bg-white/10 p-3 backdrop-blur-md">
+                  <div className="flex gap-3">
                     {STATS.map((stat) => (
-                      <div key={stat.label} className="text-center">
-                        <p className="font-serif text-base font-semibold text-white">{stat.value}</p>
-                        <p className="text-[10px] text-white/70 uppercase tracking-wider">{stat.label}</p>
+                      <div
+                        key={stat.label}
+                        className="flex-1 rounded-xl bg-white/10 px-3 py-2.5 text-center backdrop-blur-md"
+                      >
+                        <p className="text-lg font-bold text-[#D4AF37]">{stat.value}</p>
+                        <p className="text-[10px] text-white/70">{stat.label}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-
-              {/* Floating Badge */}
-              <div className="animate-float absolute -bottom-6 -left-6 hidden rounded-2xl border border-[#E6E1D5] bg-white p-4 shadow-xl sm:flex sm:items-center sm:gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EBF3F0] text-[#2A6B59]">
-                  <CheckCircle2 size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-[#0F3D3E]">Contenu mis à jour</p>
-                  <p className="text-[11px] text-[#737873]">Conforme aux dernières recommandations</p>
-                </div>
-              </div>
-
             </div>
-
           </div>
         </div>
       </section>
@@ -241,6 +232,7 @@ function HomePage() {
                 Explorer par spécialité
               </h2>
             </div>
+            
             <a
               href="#cours"
               className="group inline-flex items-center gap-2 text-sm font-semibold text-[#0F3D3E] transition-colors hover:text-[#2A6B59]"
@@ -307,6 +299,7 @@ function HomePage() {
               Créer mon compte gratuit
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
             </a>
+            
             <a
               href="/login"
               className="rounded-xl border border-[#0F3D3E]/20 bg-[#FAF8F5] px-8 py-4 text-sm font-semibold text-[#0F3D3E] transition-all hover:bg-white hover:border-[#0F3D3E]/40"
@@ -365,6 +358,26 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
                 <DashboardMedecin />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Liste des cours du médecin connecté */}
+          <Route
+            path="/dashboard/medecin/cours"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <MesCours />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ajout d'un cours (réservé aux médecins) */}
+          <Route
+            path="/dashboard/medecin/cours/ajouter"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <AjouterCours />
               </ProtectedRoute>
             }
           />

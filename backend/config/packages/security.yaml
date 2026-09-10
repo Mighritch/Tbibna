@@ -23,12 +23,12 @@ security:
                 check_path: /api/login
                 username_path: email
                 password_path: password
-                success_handler: App\Security\AuthenticationSuccessHandler   # AJOUT
-                failure_handler: App\Security\AuthenticationFailureHandler   # AJOUT
+                success_handler: App\Security\AuthenticationSuccessHandler
+                failure_handler: App\Security\AuthenticationFailureHandler
             logout:
                 path: /api/logout
-                target: /                     # optionnel, évite un warning
-                invalidate_session: true       # AJOUT recommandé
+                target: /
+                invalidate_session: true
 
         main:
             lazy: true
