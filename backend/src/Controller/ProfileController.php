@@ -67,6 +67,10 @@ class ProfileController extends AbstractController
                 'faculte' => $medecin->getFaculte(),
                 'photo' => $medecin->getPhoto(),
             ];
+        } elseif ($user->getRole() === 'ROLE_ADMIN') {
+            // L'admin n'a pas de profil spécifique (Etudiant/Medecin)
+            // On renvoie uniquement les infos de base
+            $profileData['admin'] = true;
         } else {
             return $this->json(['error' => 'Rôle inconnu'], Response::HTTP_BAD_REQUEST);
         }
@@ -157,6 +161,7 @@ class ProfileController extends AbstractController
                 $medecin->setPhoto($data['photo']);
             }
         }
+        // ROLE_ADMIN : on ne fait que les champs communs (déjà gérés plus haut)
 
         $dm->flush();
 

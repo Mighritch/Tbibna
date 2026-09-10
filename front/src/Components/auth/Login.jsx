@@ -79,10 +79,12 @@ export default function Login() {
           navigate("/dashboard/medecin");
         } else if (role === "ROLE_ETUDIANT") {
           navigate("/dashboard/etudiant");
+        } else if (role === "ROLE_ADMIN") {
+          navigate("/dashboard/admin");   // ← nouvel endpoint admin
         } else {
           navigate("/");
         }
-      }, 800); // Petit délai pour afficher le message de succès
+      }, 800);
     } catch (err) {
       setError(err.message || "Identifiants incorrects. Veuillez réessayer.");
     } finally {
