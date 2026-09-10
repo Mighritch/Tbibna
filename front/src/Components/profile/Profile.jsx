@@ -120,11 +120,8 @@ export default function Profile() {
   // Chargement initial
   // =====================================================
   useEffect(() => {
-    // fetchProfile est asynchrone : le setState qu'elle déclenche
-    // intervient après l'appel réseau, pas de manière synchrone.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProfile();
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -272,6 +269,7 @@ export default function Profile() {
 
   const isMedecin = profile?.role === "ROLE_MEDECIN";
   const isEtudiant = profile?.role === "ROLE_ETUDIANT";
+  const isAdmin = profile?.role === "ROLE_ADMIN";
 
   // =====================================================
   // Styles
@@ -351,6 +349,8 @@ export default function Profile() {
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0F3D3E] to-[#1A5658] text-[#E8C77E] shadow-lg">
             {isMedecin ? (
               <Stethoscope size={32} />
+            ) : isAdmin ? (
+              <UserIcon size={32} />
             ) : (
               <GraduationCap size={32} />
             )}
@@ -362,7 +362,11 @@ export default function Profile() {
             </h1>
 
             <p className="mt-1 text-sm font-medium text-[#5C5A54]">
-              {isMedecin ? "Médecin" : "Étudiant"}
+              {isMedecin
+                ? "Médecin"
+                : isAdmin
+                ? "Administrateur"
+                : "Étudiant"}
             </p>
           </div>
         </div>
@@ -577,9 +581,7 @@ export default function Profile() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
 
-                  {/* =================================================
-                      FACULTÉ ÉTUDIANT - SELECT
-                  ================================================= */}
+                  {/* FACULTÉ ÉTUDIANT - SELECT */}
                   <div className="sm:col-span-2">
                     <label className={labelClass}>
                       Faculté de médecine
@@ -836,9 +838,7 @@ export default function Profile() {
                     />
                   </div>
 
-                  {/* =================================================
-                      FACULTÉ MÉDECIN - SELECT
-                  ================================================= */}
+                  {/* FACULTÉ MÉDECIN - SELECT */}
                   <div>
                     <label className={labelClass}>
                       Faculté de médecine
@@ -897,7 +897,22 @@ export default function Profile() {
           )}
 
           {/* =================================================
-              Boutons
+              INFORMATIONS ADMINISTRATEUR
+          ================================================= */}
+          {isAdmin && (
+            <div className="mb-6 rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm">
+              <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#0F3D3E]">
+                Compte administrateur
+              </h2>
+
+              <p className="text-sm text-[#5C5A54]">
+                Vous disposez des droits d’administration sur la plateforme Tbibna.
+              </p>
+            </div>
+          )}
+
+          {/* =================================================
+              Boutons Annuler / Enregistrer
           ================================================= */}
           {editing && (
             <div className="flex items-center justify-end gap-3">
