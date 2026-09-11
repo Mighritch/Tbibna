@@ -24,7 +24,6 @@ class ProfileController extends AbstractController
             return $this->json(['error' => 'Non authentifié'], Response::HTTP_UNAUTHORIZED);
         }
 
-        // Base commune à tous les utilisateurs
         $profileData = [
             'id' => $user->getId(),
             'nom' => $user->getNom(),
@@ -34,7 +33,6 @@ class ProfileController extends AbstractController
             'role' => $user->getRole(),
         ];
 
-        // Ajout des champs spécifiques selon le rôle
         if ($user->getRole() === 'ROLE_ETUDIANT') {
             $etudiant = $dm->getRepository(Etudiant::class)->findOneBy(['utilisateur' => $user->getId()]);
 
@@ -68,8 +66,6 @@ class ProfileController extends AbstractController
                 'photo' => $medecin->getPhoto(),
             ];
         } elseif ($user->getRole() === 'ROLE_ADMIN') {
-            // L'admin n'a pas de profil spécifique (Etudiant/Medecin)
-            // On renvoie uniquement les infos de base
             $profileData['admin'] = true;
         } else {
             return $this->json(['error' => 'Rôle inconnu'], Response::HTTP_BAD_REQUEST);
@@ -90,16 +86,15 @@ class ProfileController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
-        if (!$data) {
+        if (!is_array($data)) {
             return $this->json(['error' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
         }
 
-        // Mise à jour des champs communs (optionnels)
         if (!empty($data['nom'])) {
-            $user->setNom($data['nom']);
+            $user->setNom(trim($data['nom']));
         }
         if (!empty($data['prenom'])) {
-            $user->setPrenom($data['prenom']);
+            $user->setPrenom(trim($data['prenom']));
         }
         if (!empty($data['dateNaissance'])) {
             try {
@@ -109,7 +104,6 @@ class ProfileController extends AbstractController
             }
         }
 
-        // Mise à jour des champs spécifiques selon le rôle
         if ($user->getRole() === 'ROLE_ETUDIANT') {
             $etudiant = $dm->getRepository(Etudiant::class)->findOneBy(['utilisateur' => $user->getId()]);
 
@@ -117,24 +111,14 @@ class ProfileController extends AbstractController
                 return $this->json(['error' => 'Profil étudiant introuvable'], Response::HTTP_NOT_FOUND);
             }
 
-            if (!empty($data['faculte'])) {
-                $etudiant->setFaculte($data['faculte']);
-            }
-            if (!empty($data['numeroCarteEtudiant'])) {
+            if (isset($data['faculte'])) $etudiant->setFaculte($data['faculte'] ?: null);
+            if (isset($data['numeroCarteEtudiant']) && $data['numeroCarteEtudiant'] !== '') {
                 $etudiant->setNumeroCarteEtudiant((int) $data['numeroCarteEtudiant']);
             }
-            if (!empty($data['niveauEtude'])) {
-                $etudiant->setNiveauEtude($data['niveauEtude']);
-            }
-            if (!empty($data['pays'])) {
-                $etudiant->setPays($data['pays']);
-            }
-            if (!empty($data['ville'])) {
-                $etudiant->setVille($data['ville']);
-            }
-            if (!empty($data['photo'])) {
-                $etudiant->setPhoto($data['photo']);
-            }
+            if (isset($data['niveauEtude'])) $etudiant->setNiveauEtude($data['niveauEtude'] ?: null);
+            if (isset($data['pays'])) $etudiant->setPays($data['pays'] ?: null);
+            if (isset($data['ville'])) $etudiant->setVille($data['ville'] ?: null);
+            if (isset($data['photo'])) $etudiant->setPhoto($data['photo'] ?: null);
         } elseif ($user->getRole() === 'ROLE_MEDECIN') {
             $medecin = $dm->getRepository(Medecin::class)->findOneBy(['utilisateur' => $user->getId()]);
 
@@ -142,26 +126,17 @@ class ProfileController extends AbstractController
                 return $this->json(['error' => 'Profil médecin introuvable'], Response::HTTP_NOT_FOUND);
             }
 
-            if (!empty($data['numeroLicence'])) {
-                $medecin->setNumeroLicence($data['numeroLicence']);
+            if (isset($data['numeroLicence'])) $medecin->setNumeroLicence($data['numeroLicence'] ?: null);
+            if (isset($data['specialite'])) $medecin->setSpecialite($data['specialite'] ?: null);
+            if (array_key_exists('anneeExperience', $data)) {
+                $medecin->setAnneeExperience($data['anneeExperience'] === '' || $data['anneeExperience'] === null
+                    ? null
+                    : (int) $data['anneeExperience']);
             }
-            if (!empty($data['specialite'])) {
-                $medecin->setSpecialite($data['specialite']);
-            }
-            if (isset($data['anneeExperience'])) {
-                $medecin->setAnneeExperience((int) $data['anneeExperience']);
-            }
-            if (!empty($data['hopital'])) {
-                $medecin->setHopital($data['hopital']);
-            }
-            if (!empty($data['faculte'])) {
-                $medecin->setFaculte($data['faculte']);
-            }
-            if (!empty($data['photo'])) {
-                $medecin->setPhoto($data['photo']);
-            }
+            if (isset($data['hopital'])) $medecin->setHopital($data['hopital'] ?: null);
+            if (isset($data['faculte'])) $medecin->setFaculte($data['faculte'] ?: null);
+            if (isset($data['photo'])) $medecin->setPhoto($data['photo'] ?: null);
         }
-        // ROLE_ADMIN : on ne fait que les champs communs (déjà gérés plus haut)
 
         $dm->flush();
 
