@@ -413,14 +413,7 @@ export default function MesCours() {
               Gérez et publiez vos cours médicaux
             </p>
           </div>
-
-          <Link
-            to="/dashboard/medecin/cours/ajouter"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-3 text-sm font-semibold text-[#F4C95D] shadow-md transition hover:bg-[#082829]"
-          >
-            <Plus size={18} />
-            Ajouter un cours
-          </Link>
+     
         </div>
 
         {/* Notification succès */}
