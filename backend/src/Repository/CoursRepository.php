@@ -3,8 +3,8 @@
 namespace App\Repository;
 
 use App\Document\Cours;
+use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\Bundle\MongoDBBundle\Repository\ServiceDocumentRepository;
-use Doctrine\Persistence\ManagerRegistry;
 
 class CoursRepository extends ServiceDocumentRepository
 {

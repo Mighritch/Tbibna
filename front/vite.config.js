@@ -25,6 +25,13 @@ export default defineConfig({
           })
         },
       },
+      // Sert les fichiers uploadés (PDF, Word, vidéo des cours) via le même
+      // domaine que le frontend, pour éviter tout souci de CORS/port.
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 })

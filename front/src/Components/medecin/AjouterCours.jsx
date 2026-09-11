@@ -1,9 +1,60 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookPlus, ArrowLeft, CheckCircle2 } from "lucide-react";
+import {
+  BookPlus,
+  ArrowLeft,
+  CheckCircle2,
+  UploadCloud,
+  FileText,
+  Film,
+  X,
+} from "lucide-react";
 
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
 const LANGUES = ["Français", "Arabe", "Anglais"];
+
+// Types acceptés pour le contenu du cours
+const ACCEPTED_EXTENSIONS = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".mp4",
+  ".mov",
+  ".avi",
+  ".mkv",
+  ".webm",
+];
+
+const ACCEPTED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "video/mp4",
+  "video/quicktime",
+  "video/x-msvideo",
+  "video/x-matroska",
+  "video/webm",
+];
+
+const MAX_FILE_SIZE_MB = 200;
+
+function getFileKind(file) {
+  if (!file) return null;
+  if (file.type === "application/pdf") return "pdf";
+  if (
+    file.type === "application/msword" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  )
+    return "word";
+  if (file.type.startsWith("video/")) return "video";
+  return "autre";
+}
+
+function FileKindIcon({ kind }) {
+  if (kind === "video") return <Film size={18} className="text-[#0F3D3E]" />;
+  return <FileText size={18} className="text-[#0F3D3E]" />;
+}
 
 export default function AjouterCours() {
   const navigate = useNavigate();
@@ -13,9 +64,11 @@ export default function AjouterCours() {
     description: "",
     duree: "",
     langueCours: "",
-    contenuCours: "",
     niveauCours: "",
   });
+
+  const [contenuFichier, setContenuFichier] = useState(null);
+  const [fileError, setFileError] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -26,23 +79,83 @@ export default function AjouterCours() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    setFileError(null);
+
+    if (!file) {
+      setContenuFichier(null);
+      return;
+    }
+
+    const isTypeOk =
+      ACCEPTED_MIME_TYPES.includes(file.type) ||
+      ACCEPTED_EXTENSIONS.some((ext) =>
+        file.name.toLowerCase().endsWith(ext)
+      );
+
+    if (!isTypeOk) {
+      setFileError(
+        "Format non supporté. Utilisez un PDF, un document Word (.doc/.docx) ou une vidéo (.mp4, .mov, .avi, .mkv, .webm)."
+      );
+      setContenuFichier(null);
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setFileError(`Le fichier dépasse la taille maximale de ${MAX_FILE_SIZE_MB} Mo.`);
+      setContenuFichier(null);
+      e.target.value = "";
+      return;
+    }
+
+    setContenuFichier(file);
+  };
+
+  const removeFile = () => {
+    setContenuFichier(null);
+    setFileError(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (!contenuFichier) {
+      setError("Veuillez joindre le contenu du cours (PDF, Word ou vidéo).");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const formData = new FormData();
+      formData.append("titre", form.titre);
+      formData.append("description", form.description);
+      formData.append("duree", form.duree);
+      formData.append("langueCours", form.langueCours);
+      formData.append("niveauCours", form.niveauCours);
+      formData.append("contenuFichier", contenuFichier);
+
       const res = await fetch("/api/cours", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          duree: Number(form.duree),
-        }),
+        // Ne pas fixer Content-Type manuellement : le navigateur
+        // génère automatiquement le bon "multipart/form-data; boundary=..."
+        body: formData,
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error("Réponse non-JSON reçue :", text.slice(0, 500));
+        throw new Error(
+          `Erreur serveur (${res.status}). Réponse non JSON. Voir la console.`
+        );
+      }
 
       if (!res.ok) {
         throw new Error(data.error || "Une erreur est survenue.");
@@ -54,17 +167,20 @@ export default function AjouterCours() {
         description: "",
         duree: "",
         langueCours: "",
-        contenuCours: "",
         niveauCours: "",
       });
+      setContenuFichier(null);
 
-      setTimeout(() => navigate("/medecin/dashboard"), 1500);
+      // Redirection correcte vers la liste des cours
+      setTimeout(() => navigate("/dashboard/medecin/cours"), 1500);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const fileKind = getFileKind(contenuFichier);
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-8">
@@ -166,7 +282,9 @@ export default function AjouterCours() {
                 >
                   <option value="">Choisir...</option>
                   {NIVEAUX.map((n) => (
-                    <option key={n} value={n}>{n}</option>
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -185,30 +303,75 @@ export default function AjouterCours() {
               >
                 <option value="">Choisir...</option>
                 {LANGUES.map((l) => (
-                  <option key={l} value={l}>{l}</option>
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
                 ))}
               </select>
             </div>
 
+            {/* Upload du contenu : PDF, Word ou vidéo */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
-                Contenu du cours
+                Contenu du cours (PDF, Word ou vidéo)
               </label>
-              <textarea
-                name="contenuCours"
-                value={form.contenuCours}
-                onChange={handleChange}
-                required
-                rows={6}
-                placeholder="Rédigez le contenu complet du cours ici..."
-                className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
-              />
+
+              {!contenuFichier ? (
+                <label
+                  htmlFor="contenuFichier"
+                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#E4DFD3] bg-[#FBF9F4] px-4 py-8 text-center transition hover:border-[#0F3D3E]/40"
+                >
+                  <UploadCloud size={26} className="text-[#0F3D3E]" />
+                  <p className="text-sm font-medium text-[#3C3A34]">
+                    Cliquez pour importer un fichier
+                  </p>
+                  <p className="text-xs text-[#5C5A54]">
+                    PDF, DOC, DOCX, MP4, MOV, AVI, MKV, WEBM — max {MAX_FILE_SIZE_MB} Mo
+                  </p>
+                  <input
+                    id="contenuFichier"
+                    name="contenuFichier"
+                    type="file"
+                    accept={ACCEPTED_EXTENSIONS.join(",")}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <FileKindIcon kind={fileKind} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[#3C3A34]">
+                        {contenuFichier.name}
+                      </p>
+                      <p className="text-xs text-[#5C5A54]">
+                        {(contenuFichier.size / (1024 * 1024)).toFixed(1)} Mo
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeFile}
+                    className="shrink-0 text-[#5C5A54] hover:text-red-600"
+                    aria-label="Retirer le fichier"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
+
+              {fileError && (
+                <p className="mt-2 text-xs font-medium text-red-600">
+                  {fileError}
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full justify-center disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-3 text-sm font-semibold text-[#F4C95D] shadow-md transition hover:bg-[#082829] disabled:opacity-60"
             >
               {loading ? "Ajout en cours..." : "Publier le cours"}
             </button>

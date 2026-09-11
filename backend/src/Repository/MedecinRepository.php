@@ -3,8 +3,8 @@
 namespace App\Repository;
 
 use App\Document\Medecin;
+use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\Bundle\MongoDBBundle\Repository\ServiceDocumentRepository;
-use Doctrine\Persistence\ManagerRegistry;
 
 class MedecinRepository extends ServiceDocumentRepository
 {

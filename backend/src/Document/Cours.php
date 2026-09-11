@@ -23,8 +23,17 @@ class Cours
     #[ODM\Field(type: "string")]
     private ?string $langueCours = null;
 
+    // Chemin/URL relatif du fichier uploadé (ex: /uploads/cours/abc123.pdf)
     #[ODM\Field(type: "string")]
     private ?string $contenuCours = null;
+
+    // Nom original du fichier envoyé par le médecin (pour affichage)
+    #[ODM\Field(type: "string", nullable: true)]
+    private ?string $nomOriginalFichier = null;
+
+    // Type du contenu : "pdf", "word" ou "video"
+    #[ODM\Field(type: "string")]
+    private ?string $typeContenu = null;
 
     #[ODM\Field(type: "string")]
     private ?string $niveauCours = null;
@@ -99,6 +108,28 @@ class Cours
     public function setContenuCours(string $contenuCours): static
     {
         $this->contenuCours = $contenuCours;
+        return $this;
+    }
+
+    public function getNomOriginalFichier(): ?string
+    {
+        return $this->nomOriginalFichier;
+    }
+
+    public function setNomOriginalFichier(?string $nomOriginalFichier): static
+    {
+        $this->nomOriginalFichier = $nomOriginalFichier;
+        return $this;
+    }
+
+    public function getTypeContenu(): ?string
+    {
+        return $this->typeContenu;
+    }
+
+    public function setTypeContenu(string $typeContenu): static
+    {
+        $this->typeContenu = $typeContenu;
         return $this;
     }
 
