@@ -35,7 +35,9 @@ export default function Login() {
   const handleEmailChange = (e) => {
     const value = e.target.value;
     setEmail(value);
-    if (value && !isValidEmail(value)) {
+    if (!value.trim()) {
+      setValidationErrors((prev) => ({ ...prev, email: "L'email est requis" }));
+    } else if (!isValidEmail(value)) {
       setValidationErrors((prev) => ({ ...prev, email: "Email invalide" }));
     } else {
       setValidationErrors((prev) => ({ ...prev, email: "" }));
@@ -45,7 +47,9 @@ export default function Login() {
   const handlePasswordChange = (e) => {
     const value = e.target.value;
     setPassword(value);
-    if (value && value.length < 6) {
+    if (!value) {
+      setValidationErrors((prev) => ({ ...prev, password: "Le mot de passe est requis" }));
+    } else if (value.length < 6) {
       setValidationErrors((prev) => ({ ...prev, password: "Min 6 caractères" }));
     } else {
       setValidationErrors((prev) => ({ ...prev, password: "" }));
@@ -57,19 +61,31 @@ export default function Login() {
     setError("");
     setSuccess("");
 
-    if (!email || !isValidEmail(email)) {
-      setValidationErrors((prev) => ({ ...prev, email: "Email invalide" }));
-      return;
+    const trimmedEmail = email.trim();
+    const newErrors = {};
+
+    // Vérification explicite des champs vides avant toute autre validation
+    if (!trimmedEmail) {
+      newErrors.email = "L'email est requis";
+    } else if (!isValidEmail(trimmedEmail)) {
+      newErrors.email = "Email invalide";
     }
-    if (!password || password.length < 6) {
-      setValidationErrors((prev) => ({ ...prev, password: "Min 6 caractères" }));
-      return;
+
+    if (!password) {
+      newErrors.password = "Le mot de passe est requis";
+    } else if (password.length < 6) {
+      newErrors.password = "Min 6 caractères";
+    }
+
+    if (newErrors.email || newErrors.password) {
+      setValidationErrors(newErrors);
+      return; // On bloque la soumission tant qu'un champ requis est vide ou invalide
     }
 
     setLoading(true);
 
     try {
-      const data = await login(email, password);
+      const data = await login(trimmedEmail, password);
       setSuccess("Connexion réussie ! Redirection...");
 
       // Redirection selon le rôle renvoyé par l'API
@@ -171,7 +187,11 @@ export default function Login() {
                 <div className="relative group">
                   <Mail
                     size={19}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0AEA6] group-focus-within:text-[#0F3D3E] group-focus-within:scale-110 transition-all duration-200"
+                    className={`absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:scale-110 transition-all duration-200 ${
+                      validationErrors.email
+                        ? "text-red-400"
+                        : "text-[#B0AEA6] group-focus-within:text-[#0F3D3E]"
+                    }`}
                   />
 
                   <input
@@ -218,7 +238,11 @@ export default function Login() {
                 <div className="relative group">
                   <Lock
                     size={19}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0AEA6] group-focus-within:text-[#0F3D3E] group-focus-within:scale-110 transition-all duration-200"
+                    className={`absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:scale-110 transition-all duration-200 ${
+                      validationErrors.password
+                        ? "text-red-400"
+                        : "text-[#B0AEA6] group-focus-within:text-[#0F3D3E]"
+                    }`}
                   />
 
                   <input
@@ -274,12 +298,7 @@ export default function Login() {
             {/* Bouton submit */}
             <button
               type="submit"
-              disabled={
-                loading ||
-                !email ||
-                !password ||
-                Object.values(validationErrors).some((e) => e)
-              }
+              disabled={loading}
               className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0F3D3E] via-[#0F3D3E] to-[#1A5658] py-3.5 text-sm font-bold text-[#FBF9F4] shadow-lg shadow-[#0F3D3E]/25 transition-all duration-300 hover:shadow-2xl hover:shadow-[#0F3D3E]/35 hover:-translate-y-0.5 active:translate-y-0 active:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 disabled:-translate-y-0 disabled:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#0F3D3E]/30 focus:ring-offset-2 focus:ring-offset-[#FBF9F4] animate-slideUp uppercase tracking-wide"
               style={{ animationDelay: "0.4s", animationFillMode: "both" }}
             >
