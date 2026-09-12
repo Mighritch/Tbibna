@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   BookOpen,
@@ -18,9 +18,11 @@ import {
   CheckCircle2,
   Hourglass,
   Ban,
+  Filter,
+  Search,
+  RotateCcw,
 } from "lucide-react";
 
-// Base du serveur Symfony qui héberge les fichiers uploadés (public/uploads/...).
 const FILES_BASE_URL = "";
 
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
@@ -55,6 +57,7 @@ function StatutBadge({ statut }) {
       </span>
     );
   }
+
   if (statut === "rejete") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
@@ -63,6 +66,7 @@ function StatutBadge({ statut }) {
       </span>
     );
   }
+
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
       <Hourglass size={12} />
@@ -71,9 +75,6 @@ function StatutBadge({ statut }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Modale de modification d'un cours                                   */
-/* ------------------------------------------------------------------ */
 function ModifierCoursModal({ cours, onClose, onSaved }) {
   const [form, setForm] = useState({
     titre: cours.titre || "",
@@ -82,6 +83,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
     langueCours: cours.langueCours || "",
     niveauCours: cours.niveauCours || "",
   });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -99,7 +101,9 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
       const res = await fetch(`/api/cours/${cours.id}`, {
         method: "PUT",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           ...form,
           duree: Number(form.duree),
@@ -107,7 +111,9 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
       });
 
       const text = await res.text();
+
       let data;
+
       try {
         data = JSON.parse(text);
       } catch {
@@ -125,7 +131,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
         ...cours,
         ...form,
         duree: Number(form.duree),
-        // après modification d’un cours rejeté, le backend le remet en_attente
         statut: cours.statut === "rejete" ? "en_attente" : cours.statut,
       });
     } catch (err) {
@@ -142,6 +147,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
           <h2 className="font-serif text-xl font-bold text-[#0F3D3E]">
             Modifier le cours
           </h2>
+
           <button
             onClick={onClose}
             className="text-[#5C5A54] hover:text-[#0F3D3E]"
@@ -162,6 +168,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Titre du cours
             </label>
+
             <input
               type="text"
               name="titre"
@@ -176,6 +183,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Description
             </label>
+
             <textarea
               name="description"
               value={form.description}
@@ -191,6 +199,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Durée (minutes)
               </label>
+
               <input
                 type="number"
                 name="duree"
@@ -206,6 +215,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Niveau
               </label>
+
               <select
                 name="niveauCours"
                 value={form.niveauCours}
@@ -214,6 +224,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
                 className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
               >
                 <option value="">Choisir...</option>
+
                 {NIVEAUX.map((n) => (
                   <option key={n} value={n}>
                     {n}
@@ -227,6 +238,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Langue du cours
             </label>
+
             <select
               name="langueCours"
               value={form.langueCours}
@@ -235,6 +247,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
             >
               <option value="">Choisir...</option>
+
               {LANGUES.map((l) => (
                 <option key={l} value={l}>
                   {l}
@@ -257,6 +270,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             >
               Annuler
             </button>
+
             <button
               type="submit"
               disabled={loading}
@@ -271,9 +285,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Modale de confirmation de suppression                               */
-/* ------------------------------------------------------------------ */
 function SupprimerCoursModal({ cours, onClose, onDeleted }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -289,7 +300,9 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
       });
 
       const text = await res.text();
+
       let data;
+
       try {
         data = JSON.parse(text);
       } catch {
@@ -318,6 +331,7 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600">
             <Trash2 size={20} />
           </span>
+
           <h2 className="font-serif text-lg font-bold text-[#0F3D3E]">
             Supprimer ce cours ?
           </h2>
@@ -325,7 +339,9 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
 
         <p className="mb-5 text-sm text-[#5C5A54]">
           Cette action est irréversible. Le cours{" "}
-          <span className="font-semibold text-[#3C3A34]">« {cours.titre} »</span>{" "}
+          <span className="font-semibold text-[#3C3A34]">
+            « {cours.titre} »
+          </span>{" "}
           et son fichier associé seront définitivement supprimés.
         </p>
 
@@ -344,6 +360,7 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
           >
             Annuler
           </button>
+
           <button
             type="button"
             onClick={handleDelete}
@@ -358,9 +375,6 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Page principale                                                     */
-/* ------------------------------------------------------------------ */
 export default function MesCours() {
   const [cours, setCours] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -369,6 +383,10 @@ export default function MesCours() {
   const [coursAModifier, setCoursAModifier] = useState(null);
   const [coursASupprimer, setCoursASupprimer] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filtreLangue, setFiltreLangue] = useState("");
+  const [filtreNiveau, setFiltreNiveau] = useState("");
 
   useEffect(() => {
     const fetchCours = async () => {
@@ -380,6 +398,7 @@ export default function MesCours() {
         const text = await res.text();
 
         let data;
+
         try {
           data = JSON.parse(text);
         } catch {
@@ -391,7 +410,9 @@ export default function MesCours() {
 
         if (!res.ok) {
           throw new Error(
-            data.error || data.message || "Impossible de charger les cours."
+            data.error ||
+              data.message ||
+              "Impossible de charger les cours."
           );
         }
 
@@ -408,14 +429,40 @@ export default function MesCours() {
 
   useEffect(() => {
     if (!successMessage) return;
+
     const timer = setTimeout(() => setSuccessMessage(null), 3000);
+
     return () => clearTimeout(timer);
   }, [successMessage]);
 
+  const coursFiltres = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    return cours.filter((c) => {
+      const matchSearch =
+        !term ||
+        (c.titre && c.titre.toLowerCase().includes(term)) ||
+        (c.description && c.description.toLowerCase().includes(term));
+
+      const matchLangue =
+        !filtreLangue || c.langueCours === filtreLangue;
+
+      const matchNiveau =
+        !filtreNiveau || c.niveauCours === filtreNiveau;
+
+      return matchSearch && matchLangue && matchNiveau;
+    });
+  }, [cours, searchTerm, filtreLangue, filtreNiveau]);
+
   const handleCoursModifie = (coursMisAJour) => {
     setCours((prev) =>
-      prev.map((c) => (c.id === coursMisAJour.id ? { ...c, ...coursMisAJour } : c))
+      prev.map((c) =>
+        c.id === coursMisAJour.id
+          ? { ...c, ...coursMisAJour }
+          : c
+      )
     );
+
     setCoursAModifier(null);
     setSuccessMessage("Cours modifié avec succès.");
   };
@@ -426,6 +473,15 @@ export default function MesCours() {
     setSuccessMessage("Cours supprimé avec succès.");
   };
 
+  const resetFiltres = () => {
+    setSearchTerm("");
+    setFiltreLangue("");
+    setFiltreNiveau("");
+  };
+
+  const hasActiveFilters =
+    searchTerm || filtreLangue || filtreNiveau;
+
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-5xl">
@@ -435,21 +491,155 @@ export default function MesCours() {
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
               Mes cours
             </h1>
+
             <p className="mt-1 text-sm text-[#5C5A54]">
               Gérez et publiez vos cours médicaux (validation admin requise)
             </p>
           </div>
+
+          <Link
+            to="/dashboard/medecin/cours/ajouter"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-2.5 text-sm font-semibold text-[#F4C95D] shadow-md transition hover:bg-[#082829] hover:shadow-lg"
+          >
+            <Plus size={16} />
+            Ajouter un cours
+          </Link>
         </div>
 
         {/* Notification succès */}
         {successMessage && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-800">
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-800 shadow-sm">
             <CheckCircle2 size={18} />
             {successMessage}
           </div>
         )}
 
-        {/* États */}
+        {/* ========== BARRE DE RECHERCHE + FILTRES (DESIGN AMÉLIORÉ) ========== */}
+        {!loading && !error && cours.length > 0 && (
+          <div className="mb-8 overflow-hidden rounded-2xl border border-[#E4DFD3] bg-white shadow-md">
+            {/* En-tête de la zone de filtres */}
+            <div className="border-b border-[#E4DFD3] bg-gradient-to-r from-[#0F3D3E]/[0.04] to-transparent px-5 py-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0F3D3E]/10 text-[#0F3D3E]">
+                    <Filter size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#0F3D3E]">
+                      Recherche & Filtres
+                    </p>
+                    <p className="text-xs text-[#5C5A54]">
+                      Trouvez rapidement vos cours
+                    </p>
+                  </div>
+                </div>
+
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={resetFiltres}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F3D3E]/5 px-3 py-1.5 text-xs font-medium text-[#0F3D3E] transition hover:bg-[#0F3D3E]/10"
+                  >
+                    <RotateCcw size={13} />
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-5 p-5">
+              {/* Champ de recherche attractif */}
+              <div className="relative group">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <Search
+                    size={18}
+                    className="text-[#5C5A54] transition group-focus-within:text-[#0F3D3E]"
+                  />
+                </div>
+
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher par titre ou description..."
+                  className="w-full rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] py-3.5 pl-12 pr-12 text-sm text-[#3C3A34] placeholder:text-[#9A9790] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
+                />
+
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#5C5A54] transition hover:bg-[#0F3D3E]/10 hover:text-[#0F3D3E]"
+                    aria-label="Effacer la recherche"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* Filtres + compteur */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex flex-wrap gap-4">
+                  {/* Filtre Langue */}
+                  <div className="min-w-[160px] flex-1 sm:flex-none">
+                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
+                      <Globe size={12} />
+                      Langue
+                    </label>
+                    <select
+                      value={filtreLangue}
+                      onChange={(e) => setFiltreLangue(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-4 py-2.5 text-sm text-[#3C3A34] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
+                    >
+                      <option value="">Toutes les langues</option>
+                      {LANGUES.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Filtre Niveau */}
+                  <div className="min-w-[160px] flex-1 sm:flex-none">
+                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
+                      <BookOpen size={12} />
+                      Niveau
+                    </label>
+                    <select
+                      value={filtreNiveau}
+                      onChange={(e) => setFiltreNiveau(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-4 py-2.5 text-sm text-[#3C3A34] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
+                    >
+                      <option value="">Tous les niveaux</option>
+                      {NIVEAUX.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Compteur de résultats */}
+                <div className="flex items-center gap-2 self-end">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${
+                      hasActiveFilters
+                        ? "bg-[#0F3D3E] text-[#F4C95D]"
+                        : "bg-[#0F3D3E]/10 text-[#0F3D3E]"
+                    }`}
+                  >
+                    {coursFiltres.length} cours
+                    {hasActiveFilters ? " trouvé(s)" : ""}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* États de chargement / erreur */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 text-[#5C5A54]">
             <Loader2 className="mb-3 h-8 w-8 animate-spin text-[#0F3D3E]" />
@@ -464,18 +654,22 @@ export default function MesCours() {
           </div>
         )}
 
+        {/* Aucun cours */}
         {!loading && !error && cours.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-12 text-center">
+          <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-12 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F3D3E]/5 text-[#0F3D3E]">
               <BookOpen size={28} />
             </div>
+
             <h2 className="text-lg font-semibold text-[#0F3D3E]">
               Aucun cours pour le moment
             </h2>
+
             <p className="mt-2 text-sm text-[#5C5A54]">
               Commencez par publier votre premier cours. Il sera visible sur la
               plateforme après validation par un administrateur.
             </p>
+
             <Link
               to="/dashboard/medecin/cours/ajouter"
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-2.5 text-sm font-semibold text-[#F4C95D] transition hover:bg-[#082829]"
@@ -486,10 +680,35 @@ export default function MesCours() {
           </div>
         )}
 
+        {/* Aucun résultat */}
+        {!loading &&
+          !error &&
+          cours.length > 0 &&
+          coursFiltres.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-10 text-center shadow-sm">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#0F3D3E]/5 text-[#0F3D3E]">
+                <Search size={22} />
+              </div>
+              <p className="text-sm font-medium text-[#3C3A34]">
+                Aucun cours ne correspond à votre recherche ou aux filtres
+                sélectionnés.
+              </p>
+
+              <button
+                type="button"
+                onClick={resetFiltres}
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F3D3E] underline-offset-2 hover:underline"
+              >
+                <RotateCcw size={14} />
+                Réinitialiser la recherche et les filtres
+              </button>
+            </div>
+          )}
+
         {/* Liste des cours */}
-        {!loading && !error && cours.length > 0 && (
+        {!loading && !error && coursFiltres.length > 0 && (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {cours.map((c) => {
+            {coursFiltres.map((c) => {
               const contenuUrl = getContenuUrl(c.contenuCours);
 
               return (
@@ -501,10 +720,12 @@ export default function MesCours() {
                     <h3 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E]">
                       {c.titre}
                     </h3>
+
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <span className="rounded-full bg-[#0F3D3E]/10 px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
                         {c.niveauCours}
                       </span>
+
                       <StatutBadge statut={c.statut} />
                     </div>
                   </div>
@@ -518,10 +739,12 @@ export default function MesCours() {
                       <Clock size={14} />
                       <span>{c.duree} min</span>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <Globe size={14} />
                       <span>{c.langueCours}</span>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <Calendar size={14} />
                       <span>
@@ -548,16 +771,19 @@ export default function MesCours() {
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <ContenuIcon type={c.typeContenu} />
+
                         <span className="truncate">
                           {contenuLabel(c.typeContenu)}
-                          {c.nomOriginalFichier ? ` — ${c.nomOriginalFichier}` : ""}
+                          {c.nomOriginalFichier
+                            ? ` — ${c.nomOriginalFichier}`
+                            : ""}
                         </span>
                       </span>
+
                       <ExternalLink size={14} className="shrink-0" />
                     </a>
                   )}
 
-                  {/* Actions : modifier / supprimer (uniquement si non approuvé) */}
                   {c.statut !== "approuve" && (
                     <div className="mt-3 flex gap-2">
                       <button
@@ -568,6 +794,7 @@ export default function MesCours() {
                         <Pencil size={14} />
                         Modifier
                       </button>
+
                       <button
                         type="button"
                         onClick={() => setCoursASupprimer(c)}
