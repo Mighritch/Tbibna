@@ -10,6 +10,8 @@ import AjouterCours from "./Components/medecin/AjouterCours";
 import MesCours from "./Components/dashboard/MesCours";
 import AdminCours from "./Components/dashboard/AdminCours";
 import Profile from "./Components/profile/Profile";
+import CoursEtudiant from "./Components/dashboard/CoursEtudiant";
+
 import {
   BookOpen,
   Stethoscope,
@@ -348,6 +350,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Liste des cours approuvés (étudiant) */}
+          <Route
+            path="/dashboard/etudiant/cours"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ETUDIANT"]}>
+                <CoursEtudiant />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/dashboard/medecin"
             element={
