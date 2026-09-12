@@ -16,7 +16,6 @@ const BASE_NAV_LINKS = [
 function isMedecin(user) {
   if (!user) return false;
 
-  // Cas 1 : tableau de rôles (le plus courant)
   if (Array.isArray(user.roles)) {
     return user.roles.some(
       (r) =>
@@ -26,21 +25,46 @@ function isMedecin(user) {
     );
   }
 
-  // Cas 2 : propriété unique
   if (user.role) {
     return String(user.role).toUpperCase().includes("MEDECIN");
   }
 
-  // Cas 3 : parfois les rôles sont dans user.roles[0].roleName etc.
+  return false;
+}
+
+// Détection du rôle admin
+function isAdmin(user) {
+  if (!user) return false;
+
+  if (Array.isArray(user.roles)) {
+    return user.roles.some(
+      (r) =>
+        r === "ROLE_ADMIN" ||
+        r === "ROLE_ADMIN".toLowerCase() ||
+        String(r).toUpperCase().includes("ADMIN")
+    );
+  }
+
+  if (user.role) {
+    return String(user.role).toUpperCase().includes("ADMIN");
+  }
+
   return false;
 }
 
 function getNavLinks(user) {
   const medecin = isMedecin(user);
+  const admin = isAdmin(user);
 
-  const coursLink = medecin
-    ? { label: "Cours", to: "/dashboard/medecin/cours" }
-    : { label: "Cours", href: "#cours" };
+  let coursLink;
+
+  if (admin) {
+    coursLink = { label: "Cours", to: "/dashboard/admin/cours" };
+  } else if (medecin) {
+    coursLink = { label: "Cours", to: "/dashboard/medecin/cours" };
+  } else {
+    coursLink = { label: "Cours", href: "#cours" };
+  }
 
   return [coursLink, ...BASE_NAV_LINKS];
 }

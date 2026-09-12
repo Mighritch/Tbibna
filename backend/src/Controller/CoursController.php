@@ -48,8 +48,6 @@ class CoursController extends AbstractController
     public function create(Request $request): JsonResponse
     {
         try {
-            // Les champs texte arrivent maintenant via multipart/form-data,
-            // pas en JSON, puisqu'un fichier est envoyé en même temps.
             $data = $request->request->all();
 
             $required = ['titre', 'description', 'duree', 'langueCours', 'niveauCours'];
@@ -91,7 +89,6 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Profil médecin introuvable.'], 404);
             }
 
-            // Stockage du fichier sur le disque, dans public/uploads/cours
             $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/cours';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0775, true);
@@ -117,12 +114,13 @@ class CoursController extends AbstractController
             $cours->setTypeContenu($typeContenu);
             $cours->setNiveauCours($data['niveauCours']);
             $cours->setMedecin($medecin);
+            $cours->setStatut('en_attente'); // ← toujours en attente à la création
 
             $this->dm->persist($cours);
             $this->dm->flush();
 
             return $this->json([
-                'message' => 'Cours ajouté avec succès.',
+                'message' => 'Cours ajouté avec succès. Il sera visible après validation par un administrateur.',
                 'cours' => [
                     'id' => $cours->getId(),
                     'titre' => $cours->getTitre(),
@@ -133,6 +131,7 @@ class CoursController extends AbstractController
                     'contenuCours' => $cours->getContenuCours(),
                     'nomOriginalFichier' => $cours->getNomOriginalFichier(),
                     'typeContenu' => $cours->getTypeContenu(),
+                    'statut' => $cours->getStatut(),
                     'dateCreation' => $cours->getDateCreation()?->format('Y-m-d H:i'),
                 ],
             ], 201);
@@ -141,6 +140,9 @@ class CoursController extends AbstractController
         }
     }
 
+    /**
+     * Liste des cours du médecin connecté (tous statuts)
+     */
     #[Route('/mes-cours', name: 'cours_mes_cours', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function mesCours(): JsonResponse
@@ -160,8 +162,40 @@ class CoursController extends AbstractController
             }
 
             $coursList = $this->coursRepository->findBy(
-              ['medecin' => $medecin],
-              ['dateCreation' => 'DESC']
+                ['medecin' => $medecin],
+                ['dateCreation' => 'DESC']
+            );
+
+            $result = array_map(static fn(Cours $c) => [
+                'id' => $c->getId(),
+                'titre' => $c->getTitre(),
+                'description' => $c->getDescription(),
+                'duree' => $c->getDuree(),
+                'langueCours' => $c->getLangueCours(),
+                'niveauCours' => $c->getNiveauCours(),
+                'contenuCours' => $c->getContenuCours(),
+                'nomOriginalFichier' => $c->getNomOriginalFichier(),
+                'typeContenu' => $c->getTypeContenu(),
+                'statut' => $c->getStatut(),
+                'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
+            ], $coursList);
+
+            return $this->json($result);
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+    }
+
+    /**
+     * Liste publique des cours approuvés (pour la plateforme)
+     */
+    #[Route('/public', name: 'cours_public_list', methods: ['GET'])]
+    public function publicList(): JsonResponse
+    {
+        try {
+            $coursList = $this->coursRepository->findBy(
+                ['statut' => 'approuve'],
+                ['dateCreation' => 'DESC']
             );
 
             $result = array_map(static fn(Cours $c) => [
@@ -183,6 +217,87 @@ class CoursController extends AbstractController
         }
     }
 
+    /**
+     * Liste de tous les cours en attente (pour l’admin)
+     */
+    #[Route('/admin/en-attente', name: 'cours_admin_pending', methods: ['GET'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function adminPending(): JsonResponse
+    {
+        try {
+            $coursList = $this->coursRepository->findBy(
+                ['statut' => 'en_attente'],
+                ['dateCreation' => 'DESC']
+            );
+
+            $result = array_map(static fn(Cours $c) => [
+                'id' => $c->getId(),
+                'titre' => $c->getTitre(),
+                'description' => $c->getDescription(),
+                'duree' => $c->getDuree(),
+                'langueCours' => $c->getLangueCours(),
+                'niveauCours' => $c->getNiveauCours(),
+                'contenuCours' => $c->getContenuCours(),
+                'nomOriginalFichier' => $c->getNomOriginalFichier(),
+                'typeContenu' => $c->getTypeContenu(),
+                'statut' => $c->getStatut(),
+                'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
+                'medecin' => $c->getMedecin() ? [
+                    'id' => $c->getMedecin()->getId(),
+                    // ajoute d’autres champs si besoin (nom, etc.)
+                ] : null,
+            ], $coursList);
+
+            return $this->json($result);
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+    }
+
+    /**
+     * Approuver un cours (admin)
+     */
+    #[Route('/{id}/approuver', name: 'cours_approve', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function approve(string $id): JsonResponse
+    {
+        try {
+            $cours = $this->coursRepository->find($id);
+            if (!$cours) {
+                return $this->json(['error' => 'Cours introuvable.'], 404);
+            }
+
+            $cours->setStatut('approuve');
+            $this->dm->flush();
+
+            return $this->json(['message' => 'Cours approuvé avec succès.']);
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+    }
+
+    /**
+     * Rejeter un cours (admin)
+     */
+    #[Route('/{id}/rejeter', name: 'cours_reject', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function reject(string $id): JsonResponse
+    {
+        try {
+            $cours = $this->coursRepository->find($id);
+            if (!$cours) {
+                return $this->json(['error' => 'Cours introuvable.'], 404);
+            }
+
+            $cours->setStatut('rejete');
+            $this->dm->flush();
+
+            return $this->json(['message' => 'Cours rejeté.']);
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+    }
+
     #[Route('/{id}', name: 'cours_update', methods: ['PUT'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function update(string $id, Request $request): JsonResponse
@@ -199,6 +314,11 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Accès refusé.'], 403);
             }
 
+            // On ne permet la modification que si le cours n’est pas encore approuvé
+            if ($cours->getStatut() === 'approuve') {
+                return $this->json(['error' => 'Un cours déjà approuvé ne peut plus être modifié.'], 400);
+            }
+
             $data = json_decode($request->getContent(), true);
             if (!is_array($data)) {
                 return $this->json(['error' => 'JSON invalide'], 400);
@@ -209,6 +329,11 @@ class CoursController extends AbstractController
             if (isset($data['duree'])) $cours->setDuree((int) $data['duree']);
             if (isset($data['langueCours'])) $cours->setLangueCours($data['langueCours']);
             if (isset($data['niveauCours'])) $cours->setNiveauCours($data['niveauCours']);
+
+            // Remettre en attente si le médecin modifie après un rejet
+            if ($cours->getStatut() === 'rejete') {
+                $cours->setStatut('en_attente');
+            }
 
             $this->dm->flush();
 
@@ -234,7 +359,6 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Accès refusé.'], 403);
             }
 
-            // Supprime aussi le fichier physique associé, s'il existe
             $filePath = $this->getParameter('kernel.project_dir') . '/public' . $cours->getContenuCours();
             if ($cours->getContenuCours() && file_exists($filePath)) {
                 @unlink($filePath);
