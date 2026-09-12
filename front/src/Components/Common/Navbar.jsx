@@ -52,9 +52,30 @@ function isAdmin(user) {
   return false;
 }
 
+// Détection du rôle étudiant
+function isEtudiant(user) {
+  if (!user) return false;
+
+  if (Array.isArray(user.roles)) {
+    return user.roles.some(
+      (r) =>
+        r === "ROLE_ETUDIANT" ||
+        r === "ROLE_ETUDIANT".toLowerCase() ||
+        String(r).toUpperCase().includes("ETUDIANT")
+    );
+  }
+
+  if (user.role) {
+    return String(user.role).toUpperCase().includes("ETUDIANT");
+  }
+
+  return false;
+}
+
 function getNavLinks(user) {
   const medecin = isMedecin(user);
   const admin = isAdmin(user);
+  const etudiant = isEtudiant(user);
 
   let coursLink;
 
@@ -62,7 +83,11 @@ function getNavLinks(user) {
     coursLink = { label: "Cours", to: "/dashboard/admin/cours" };
   } else if (medecin) {
     coursLink = { label: "Cours", to: "/dashboard/medecin/cours" };
+  } else if (etudiant) {
+    // Étudiant connecté → page des cours approuvés
+    coursLink = { label: "Cours", to: "/dashboard/etudiant/cours" };
   } else {
+    // Non connecté → ancre sur la page d'accueil
     coursLink = { label: "Cours", href: "#cours" };
   }
 
