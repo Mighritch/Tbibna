@@ -38,6 +38,10 @@ class Cours
     #[ODM\Field(type: "string")]
     private ?string $niveauCours = null;
 
+    // Statut de validation : "en_attente" | "approuve" | "rejete"
+    #[ODM\Field(type: "string")]
+    private string $statut = 'en_attente';
+
     // Référence vers le médecin qui a créé le cours
     #[ODM\ReferenceOne(targetDocument: Medecin::class, storeAs: "id")]
     private ?Medecin $medecin = null;
@@ -49,6 +53,7 @@ class Cours
     public function __construct()
     {
         $this->dateCreation = new \DateTime();
+        $this->statut = 'en_attente';
     }
 
     public function getId(): ?string
@@ -141,6 +146,17 @@ class Cours
     public function setNiveauCours(string $niveauCours): static
     {
         $this->niveauCours = $niveauCours;
+        return $this;
+    }
+
+    public function getStatut(): string
+    {
+        return $this->statut;
+    }
+
+    public function setStatut(string $statut): static
+    {
+        $this->statut = $statut;
         return $this;
     }
 

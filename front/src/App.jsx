@@ -8,6 +8,7 @@ import DashboardEtudiant from "./Components/dashboard/DashboardEtudiant";
 import DashboardMedecin from "./Components/dashboard/DashboardMedecin";
 import AjouterCours from "./Components/medecin/AjouterCours";
 import MesCours from "./Components/dashboard/MesCours";
+import AdminCours from "./Components/dashboard/AdminCours";
 import Profile from "./Components/profile/Profile";
 import {
   BookOpen,
@@ -23,6 +24,7 @@ import {
   Sparkles
 } from "lucide-react";
 
+// ===================== CONSTANTES HOMEPAGE =====================
 const SPECIALTIES = [
   {
     icon: Stethoscope,
@@ -74,12 +76,12 @@ const BENEFITS = [
   },
 ];
 
+// ===================== COMPOSANT HOMEPAGE =====================
 function HomePage() {
   return (
     <>
-      {/* ===================== HERO SECTION ===================== */}
+      {/* HERO SECTION */}
       <section className="relative overflow-hidden pt-6 pb-20 lg:pt-12 lg:pb-32">
-        {/* Glow Effects d'arrière-plan */}
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="animate-glow absolute -top-24 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-[#0F3D3E]/[0.04] blur-3xl" />
           <div className="absolute right-10 top-1/3 h-80 w-80 rounded-full bg-[#D4AF37]/10 blur-3xl" />
@@ -87,8 +89,6 @@ function HomePage() {
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-8">
-            
-            {/* Contenu Gauche */}
             <div className="lg:col-span-7">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#0F3D3E]/10 bg-white/80 px-4 py-1.5 text-xs font-semibold tracking-wide text-[#0F3D3E] shadow-sm backdrop-blur-md">
                 <span className="flex h-2 w-2 rounded-full bg-[#2A6B59]" />
@@ -107,7 +107,6 @@ function HomePage() {
                 Accédez à des cours structurés, des cas cliniques interactifs et des ressources exclusives élaborés par les meilleurs spécialistes tunisiens.
               </p>
 
-              {/* Boutons d'action */}
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <a
                   href="/register"
@@ -126,7 +125,6 @@ function HomePage() {
                 </a>
               </div>
 
-              {/* Preuve sociale */}
               <div className="mt-10 flex items-center gap-4 border-t border-[#E6E1D5] pt-6">
                 <div className="flex -space-x-2">
                   {[1, 2, 3, 4].map((i) => (
@@ -151,11 +149,8 @@ function HomePage() {
               </div>
             </div>
 
-            {/* Visuel Droite */}
             <div className="lg:col-span-5 relative">
               <div className="relative mx-auto aspect-[4/4.2] w-full max-w-md overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F3D3E] to-[#082829] p-8 text-white shadow-2xl">
-                
-                {/* Décoration en arrière-plan */}
                 <div className="absolute inset-0 bg-[radial-gradient(#D4AF37_1px,transparent_1px)] [background-size:20px_20px] opacity-10" />
                 <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[#D4AF37]/20 blur-2xl" />
 
@@ -179,7 +174,6 @@ function HomePage() {
                     </p>
                   </div>
 
-                  {/* Badges de statistiques */}
                   <div className="flex gap-3">
                     {STATS.map((stat) => (
                       <div
@@ -198,7 +192,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* ===================== BENEFITS SECTION ===================== */}
+      {/* BENEFITS SECTION */}
       <section className="border-y border-[#E6E1D5] bg-white/60 py-12 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-8 md:grid-cols-3">
@@ -220,7 +214,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* ===================== SPECIALTIES SECTION ===================== */}
+      {/* SPECIALTIES SECTION */}
       <section id="specialites" className="py-20 lg:py-28 bg-[#F3EFE6]/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
@@ -277,7 +271,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* ===================== CTA FINAL ===================== */}
+      {/* CTA SECTION */}
       <section className="relative overflow-hidden py-20 lg:py-28 bg-white border-t border-[#E6E1D5]">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F3D3E] text-[#D4AF37] shadow-xl">
@@ -310,7 +304,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* ===================== FOOTER ===================== */}
+      {/* FOOTER */}
       <footer className="border-t border-[#E6E1D5] bg-[#FAF8F5] py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
@@ -330,6 +324,7 @@ function HomePage() {
   );
 }
 
+// ===================== COMPOSANT APPLICATION =====================
 function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#181919] antialiased">
@@ -382,7 +377,25 @@ function App() {
             }
           />
 
-          {/* Profil utilisateur (accessible aux deux rôles) */}
+          {/* ========== ADMIN ========== */}
+          <Route
+            path="/dashboard/admin"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <AdminCours />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/admin/cours"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <AdminCours />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Profil utilisateur */}
           <Route
             path="/profile"
             element={

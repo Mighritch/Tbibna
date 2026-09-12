@@ -86,7 +86,7 @@ export default function Login() {
 
     try {
       const data = await login(trimmedEmail, password);
-      setSuccess("Connexion réussie ! Redirection...");
+      setSuccess("Connexion réussie !");
 
       // Redirection selon le rôle renvoyé par l'API
       const role = data?.user?.role;

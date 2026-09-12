@@ -16,10 +16,11 @@ import {
   Trash2,
   X,
   CheckCircle2,
+  Hourglass,
+  Ban,
 } from "lucide-react";
 
 // Base du serveur Symfony qui héberge les fichiers uploadés (public/uploads/...).
-// Laisser vide "" si le proxy Vite redirige /uploads vers le backend.
 const FILES_BASE_URL = "";
 
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
@@ -43,6 +44,31 @@ function contenuLabel(type) {
   if (type === "word") return "Voir le document Word";
   if (type === "video") return "Voir la vidéo";
   return "Voir le contenu";
+}
+
+function StatutBadge({ statut }) {
+  if (statut === "approuve") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+        <CheckCircle2 size={12} />
+        Approuvé
+      </span>
+    );
+  }
+  if (statut === "rejete") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+        <Ban size={12} />
+        Rejeté
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+      <Hourglass size={12} />
+      En attente
+    </span>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -99,6 +125,8 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
         ...cours,
         ...form,
         duree: Number(form.duree),
+        // après modification d’un cours rejeté, le backend le remet en_attente
+        statut: cours.statut === "rejete" ? "en_attente" : cours.statut,
       });
     } catch (err) {
       setError(err.message);
@@ -349,13 +377,12 @@ export default function MesCours() {
           credentials: "include",
         });
 
-        const text = await res.text(); // Lecture de la réponse brute (texte)
+        const text = await res.text();
 
         let data;
         try {
           data = JSON.parse(text);
         } catch {
-          // Si la réponse n'est pas du JSON (ex: page d'erreur HTML 404/500)
           console.error("Réponse non-JSON reçue :", text.slice(0, 500));
           throw new Error(
             `Erreur serveur (${res.status}). Réponse non JSON. Voir la console.`
@@ -379,7 +406,6 @@ export default function MesCours() {
     fetchCours();
   }, []);
 
-  // Petite notification auto-effacée après une action réussie
   useEffect(() => {
     if (!successMessage) return;
     const timer = setTimeout(() => setSuccessMessage(null), 3000);
@@ -410,10 +436,9 @@ export default function MesCours() {
               Mes cours
             </h1>
             <p className="mt-1 text-sm text-[#5C5A54]">
-              Gérez et publiez vos cours médicaux
+              Gérez et publiez vos cours médicaux (validation admin requise)
             </p>
           </div>
-     
         </div>
 
         {/* Notification succès */}
@@ -448,8 +473,8 @@ export default function MesCours() {
               Aucun cours pour le moment
             </h2>
             <p className="mt-2 text-sm text-[#5C5A54]">
-              Commencez par publier votre premier cours pour le partager avec
-              vos étudiants et confrères.
+              Commencez par publier votre premier cours. Il sera visible sur la
+              plateforme après validation par un administrateur.
             </p>
             <Link
               to="/dashboard/medecin/cours/ajouter"
@@ -476,9 +501,12 @@ export default function MesCours() {
                     <h3 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E]">
                       {c.titre}
                     </h3>
-                    <span className="shrink-0 rounded-full bg-[#0F3D3E]/10 px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
-                      {c.niveauCours}
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="rounded-full bg-[#0F3D3E]/10 px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
+                        {c.niveauCours}
+                      </span>
+                      <StatutBadge statut={c.statut} />
+                    </div>
                   </div>
 
                   <p className="mb-4 line-clamp-2 flex-1 text-sm text-[#5C5A54]">
@@ -511,7 +539,6 @@ export default function MesCours() {
                     </div>
                   </div>
 
-                  {/* Lien vers le contenu du cours (PDF, Word ou vidéo) */}
                   {contenuUrl && (
                     <a
                       href={contenuUrl}
@@ -530,25 +557,27 @@ export default function MesCours() {
                     </a>
                   )}
 
-                  {/* Actions : modifier / supprimer */}
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCoursAModifier(c)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E4DFD3] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#0F3D3E]/5"
-                    >
-                      <Pencil size={14} />
-                      Modifier
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCoursASupprimer(c)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                    >
-                      <Trash2 size={14} />
-                      Supprimer
-                    </button>
-                  </div>
+                  {/* Actions : modifier / supprimer (uniquement si non approuvé) */}
+                  {c.statut !== "approuve" && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCoursAModifier(c)}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E4DFD3] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#0F3D3E]/5"
+                      >
+                        <Pencil size={14} />
+                        Modifier
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCoursASupprimer(c)}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                      >
+                        <Trash2 size={14} />
+                        Supprimer
+                      </button>
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -556,7 +585,6 @@ export default function MesCours() {
         )}
       </div>
 
-      {/* Modale de modification */}
       {coursAModifier && (
         <ModifierCoursModal
           cours={coursAModifier}
@@ -565,7 +593,6 @@ export default function MesCours() {
         />
       )}
 
-      {/* Modale de suppression */}
       {coursASupprimer && (
         <SupprimerCoursModal
           cours={coursASupprimer}

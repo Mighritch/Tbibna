@@ -141,8 +141,6 @@ export default function AjouterCours() {
       const res = await fetch("/api/cours", {
         method: "POST",
         credentials: "include",
-        // Ne pas fixer Content-Type manuellement : le navigateur
-        // génère automatiquement le bon "multipart/form-data; boundary=..."
         body: formData,
       });
 
@@ -171,7 +169,6 @@ export default function AjouterCours() {
       });
       setContenuFichier(null);
 
-      // Redirection correcte vers la liste des cours
       setTimeout(() => navigate("/dashboard/medecin/cours"), 1500);
     } catch (err) {
       setError(err.message);
@@ -211,7 +208,7 @@ export default function AjouterCours() {
           {success && (
             <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               <CheckCircle2 size={18} />
-              Cours ajouté avec succès. Redirection...
+              Cours ajouté avec succès. Il sera visible après validation par un administrateur. Redirection...
             </div>
           )}
 
