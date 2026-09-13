@@ -8,12 +8,13 @@ import {
   FileText,
   Film,
   X,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
 const LANGUES = ["Français", "Arabe", "Anglais"];
 
-// Types acceptés pour le contenu du cours
 const ACCEPTED_EXTENSIONS = [
   ".pdf",
   ".doc",
@@ -71,6 +72,7 @@ export default function AjouterCours() {
   const [fileError, setFileError] = useState(null);
 
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
@@ -116,6 +118,61 @@ export default function AjouterCours() {
   const removeFile = () => {
     setContenuFichier(null);
     setFileError(null);
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!form.titre.trim()) {
+      setError("Veuillez d’abord saisir le titre du cours.");
+      return;
+    }
+
+    if (!form.langueCours) {
+      setError("Veuillez sélectionner la langue du cours avant de générer la description.");
+      return;
+    }
+
+    setError(null);
+    setGenerating(true);
+
+    try {
+      const res = await fetch("/api/cours/generer-description", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          titre: form.titre,
+          langueCours: form.langueCours,
+          niveauCours: form.niveauCours || undefined,
+          duree: form.duree || undefined,
+        }),
+      });
+
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error("Réponse non-JSON reçue :", text.slice(0, 500));
+        throw new Error(
+          `Erreur serveur (${res.status}). Réponse non JSON. Voir la console.`
+        );
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || "Impossible de générer la description.");
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        description: data.description || "",
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -178,6 +235,7 @@ export default function AjouterCours() {
   };
 
   const fileKind = getFileKind(contenuFichier);
+  const canGenerate = form.titre.trim() !== "" && form.langueCours !== "";
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-8">
@@ -219,6 +277,7 @@ export default function AjouterCours() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Titre */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Titre du cours
@@ -234,19 +293,73 @@ export default function AjouterCours() {
               />
             </div>
 
+            {/* Langue (placée avant la description pour forcer le choix) */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
-                Description
+                Langue du cours
               </label>
+              <select
+                name="langueCours"
+                value={form.langueCours}
+                onChange={handleChange}
+                required
+                className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
+              >
+                <option value="">Choisir la langue...</option>
+                {LANGUES.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Description + bouton IA */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <label className="block text-sm font-medium text-[#3C3A34]">
+                  Description
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateDescription}
+                  disabled={generating || !canGenerate}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#0F3D3E]/20 bg-[#0F3D3E]/5 px-3 py-1.5 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#0F3D3E]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={
+                    !form.titre.trim()
+                      ? "Saisissez d’abord un titre"
+                      : !form.langueCours
+                      ? "Sélectionnez d’abord la langue"
+                      : "Générer une description avec l’IA"
+                  }
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Génération...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={14} />
+                      Générer avec l’IA
+                    </>
+                  )}
+                </button>
+              </div>
+
               <textarea
                 name="description"
                 value={form.description}
                 onChange={handleChange}
                 required
-                rows={3}
-                placeholder="Résumé du cours..."
+                rows={4}
+                placeholder="Résumé du cours... ou cliquez sur « Générer avec l’IA »"
                 className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
               />
+              <p className="mt-1.5 text-xs text-[#5C5A54]">
+                Astuce : renseignez le <strong>titre</strong> et la <strong>langue</strong>, puis cliquez sur le bouton IA.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -287,27 +400,7 @@ export default function AjouterCours() {
               </div>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
-                Langue du cours
-              </label>
-              <select
-                name="langueCours"
-                value={form.langueCours}
-                onChange={handleChange}
-                required
-                className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
-              >
-                <option value="">Choisir...</option>
-                {LANGUES.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Upload du contenu : PDF, Word ou vidéo */}
+            {/* Upload */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Contenu du cours (PDF, Word ou vidéo)
@@ -367,7 +460,7 @@ export default function AjouterCours() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || generating}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-3 text-sm font-semibold text-[#F4C95D] shadow-md transition hover:bg-[#082829] disabled:opacity-60"
             >
               {loading ? "Ajout en cours..." : "Publier le cours"}

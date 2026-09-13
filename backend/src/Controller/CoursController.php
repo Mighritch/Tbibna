@@ -15,14 +15,13 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[Route('/api/cours')]
 class CoursController extends AbstractController
 {
-    // Passe à false une fois le bug corrigé et confirmé
     private const DEBUG_MODE = true;
 
-    // Extensions et types MIME acceptés pour le contenu du cours
     private const ALLOWED_MIME_TYPES = [
         'application/pdf' => 'pdf',
         'application/msword' => 'word',
@@ -41,7 +40,124 @@ class CoursController extends AbstractController
         private CoursRepository $coursRepository,
         private MedecinRepository $medecinRepository,
         private SluggerInterface $slugger,
+        private HttpClientInterface $httpClient,
     ) {}
+
+    /**
+     * Génère une description de cours avec OpenRouter (IA gratuite)
+     * La description est générée selon le TITRE + la LANGUE du cours
+     */
+    #[Route('/generer-description', name: 'cours_generer_description', methods: ['POST'])]
+    #[IsGranted('ROLE_MEDECIN')]
+    public function genererDescription(Request $request): JsonResponse
+    {
+        try {
+            $data = json_decode($request->getContent(), true);
+
+            if (!is_array($data)) {
+                return $this->json(['error' => 'Données invalides.'], 400);
+            }
+
+            $titre = trim($data['titre'] ?? '');
+            $langue = trim($data['langueCours'] ?? '');
+
+            // Titre et langue sont OBLIGATOIRES
+            if ($titre === '') {
+                return $this->json(['error' => 'Le titre du cours est requis pour générer une description.'], 400);
+            }
+
+            if ($langue === '') {
+                return $this->json(['error' => 'La langue du cours est requise pour générer une description.'], 400);
+            }
+
+            $niveau = $data['niveauCours'] ?? null;
+            $duree  = $data['duree'] ?? null;
+
+            $apiKey = $_ENV['OPENROUTER_API_KEY'] ?? null;
+            if (!$apiKey) {
+                return $this->json(['error' => 'Clé API OpenRouter non configurée sur le serveur.'], 500);
+            }
+
+            // Prompt fort qui force la langue
+            $prompt = "Tu es un expert médical et pédagogue expérimenté.\n\n";
+            $prompt .= "Génère une description concise, professionnelle et engageante (2 à 4 phrases maximum) pour un cours médical.\n\n";
+            $prompt .= "Titre du cours : « {$titre} »\n";
+            $prompt .= "Langue OBLIGATOIRE de la description : {$langue}\n";
+
+            if ($niveau) {
+                $prompt .= "Niveau : {$niveau}\n";
+            }
+            if ($duree) {
+                $prompt .= "Durée approximative : {$duree} minutes\n";
+            }
+
+            $prompt .= "\nRègles strictes :\n";
+            $prompt .= "- La description DOIT être entièrement rédigée en {$langue}.\n";
+            $prompt .= "- Elle doit être claire, informative et adaptée à des patients ou des professionnels de santé.\n";
+            $prompt .= "- Aucun markdown, aucun titre, aucune introduction, aucune conclusion.\n";
+            $prompt .= "- Réponds uniquement avec le texte de la description.";
+
+            $response = $this->httpClient->request('POST', 'https://openrouter.ai/api/v1/chat/completions', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type'  => 'application/json',
+                    'HTTP-Referer'  => 'http://localhost:5173',
+                    'X-Title'       => 'Tbibna - Génération description cours',
+                ],
+                'json' => [
+                    'model' => 'openrouter/free',
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => "Tu es un assistant spécialisé dans la rédaction de contenus pédagogiques médicaux. Tu réponds UNIQUEMENT avec le texte de la description dans la langue demandée, sans aucun autre texte.",
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt,
+                        ],
+                    ],
+                    'temperature' => 0.7,
+                    'max_tokens'  => 400,
+                ],
+                'timeout' => 45,
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            $body = $response->toArray(false);
+
+            if ($statusCode !== 200) {
+                $rawMessage = $body['error']['message'] ?? ($body['message'] ?? 'Erreur inconnue de l\'API OpenRouter');
+
+                if ($statusCode === 402 || stripos($rawMessage, 'insufficient') !== false || stripos($rawMessage, 'credits') !== false) {
+                    return $this->json([
+                        'error' => 'Crédits OpenRouter insuffisants ou limite gratuite atteinte. Réessayez plus tard.'
+                    ], 402);
+                }
+
+                if ($statusCode === 401) {
+                    return $this->json(['error' => 'Clé API OpenRouter invalide ou expirée.'], 401);
+                }
+
+                if ($statusCode === 429) {
+                    return $this->json(['error' => 'Trop de requêtes. Attendez quelques secondes et réessayez.'], 429);
+                }
+
+                return $this->json(['error' => 'Erreur IA : ' . $rawMessage], 502);
+            }
+
+            $description = trim($body['choices'][0]['message']['content'] ?? '');
+
+            if ($description === '') {
+                return $this->json(['error' => 'Aucune description générée par l\'IA.'], 502);
+            }
+
+            return $this->json([
+                'description' => $description,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+    }
 
     #[Route('', name: 'cours_create', methods: ['POST'])]
     #[IsGranted('ROLE_MEDECIN')]
@@ -114,7 +230,7 @@ class CoursController extends AbstractController
             $cours->setTypeContenu($typeContenu);
             $cours->setNiveauCours($data['niveauCours']);
             $cours->setMedecin($medecin);
-            $cours->setStatut('en_attente'); // ← toujours en attente à la création
+            $cours->setStatut('en_attente');
 
             $this->dm->persist($cours);
             $this->dm->flush();
@@ -140,9 +256,6 @@ class CoursController extends AbstractController
         }
     }
 
-    /**
-     * Liste des cours du médecin connecté (tous statuts)
-     */
     #[Route('/mes-cours', name: 'cours_mes_cours', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function mesCours(): JsonResponse
@@ -186,9 +299,6 @@ class CoursController extends AbstractController
         }
     }
 
-    /**
-     * Liste publique des cours approuvés (pour la plateforme)
-     */
     #[Route('/public', name: 'cours_public_list', methods: ['GET'])]
     public function publicList(): JsonResponse
     {
@@ -217,9 +327,6 @@ class CoursController extends AbstractController
         }
     }
 
-    /**
-     * Liste de tous les cours en attente (pour l’admin)
-     */
     #[Route('/admin/en-attente', name: 'cours_admin_pending', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
     public function adminPending(): JsonResponse
@@ -244,7 +351,6 @@ class CoursController extends AbstractController
                 'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
                 'medecin' => $c->getMedecin() ? [
                     'id' => $c->getMedecin()->getId(),
-                    // ajoute d’autres champs si besoin (nom, etc.)
                 ] : null,
             ], $coursList);
 
@@ -254,9 +360,6 @@ class CoursController extends AbstractController
         }
     }
 
-    /**
-     * Approuver un cours (admin)
-     */
     #[Route('/{id}/approuver', name: 'cours_approve', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
     public function approve(string $id): JsonResponse
@@ -276,9 +379,6 @@ class CoursController extends AbstractController
         }
     }
 
-    /**
-     * Rejeter un cours (admin)
-     */
     #[Route('/{id}/rejeter', name: 'cours_reject', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
     public function reject(string $id): JsonResponse
@@ -314,7 +414,6 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Accès refusé.'], 403);
             }
 
-            // On ne permet la modification que si le cours n’est pas encore approuvé
             if ($cours->getStatut() === 'approuve') {
                 return $this->json(['error' => 'Un cours déjà approuvé ne peut plus être modifié.'], 400);
             }
@@ -330,7 +429,6 @@ class CoursController extends AbstractController
             if (isset($data['langueCours'])) $cours->setLangueCours($data['langueCours']);
             if (isset($data['niveauCours'])) $cours->setNiveauCours($data['niveauCours']);
 
-            // Remettre en attente si le médecin modifie après un rejet
             if ($cours->getStatut() === 'rejete') {
                 $cours->setStatut('en_attente');
             }
