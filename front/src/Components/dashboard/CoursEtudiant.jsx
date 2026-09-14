@@ -8,6 +8,9 @@ import {
   Download,
   Search,
   Filter,
+  Sparkles,
+  Loader2,
+  Eye,
 } from "lucide-react";
 
 // Options fixes (affichées dans les filtres)
@@ -23,6 +26,9 @@ export default function CoursEtudiant() {
   const [search, setSearch] = useState("");
   const [langue, setLangue] = useState("");
   const [niveau, setNiveau] = useState("");
+
+  // État pour les résumés IA
+  const [resumes, setResumes] = useState({}); // { [coursId]: { text, loading, error } }
 
   useEffect(() => {
     const fetchCours = async () => {
@@ -103,6 +109,44 @@ export default function CoursEtudiant() {
         return "Word";
       default:
         return type || "Document";
+    }
+  };
+
+  const genererResume = async (coursId) => {
+    setResumes((prev) => ({
+      ...prev,
+      [coursId]: { text: null, loading: true, error: null },
+    }));
+
+    try {
+      const res = await fetch(`/api/cours/${coursId}/resumer`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Impossible de générer le résumé.");
+      }
+
+      setResumes((prev) => ({
+        ...prev,
+        [coursId]: { text: data.resume, loading: false, error: null },
+      }));
+    } catch (err) {
+      console.error(err);
+      setResumes((prev) => ({
+        ...prev,
+        [coursId]: {
+          text: null,
+          loading: false,
+          error: err.message || "Erreur lors de la génération du résumé.",
+        },
+      }));
     }
   };
 
@@ -251,68 +295,127 @@ export default function CoursEtudiant() {
         {/* Liste des cours */}
         {!loading && !error && coursFiltres.length > 0 && (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {coursFiltres.map((c) => (
-              <article
-                key={c.id}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-[#E6E1D5] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#0F3D3E]/25 hover:shadow-lg"
-              >
-                {/* En-tête de carte */}
-                <div className="flex items-start justify-between gap-3 border-b border-[#E6E1D5]/70 bg-[#FAF8F5] px-5 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
-                      {getTypeIcon(c.typeContenu)}
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[#737873]">
-                      {getTypeLabel(c.typeContenu)}
-                    </span>
-                  </div>
-                  <span className="rounded-full bg-[#EBF3F0] px-2.5 py-1 text-[11px] font-medium text-[#2A6B59]">
-                    {c.niveauCours || "—"}
-                  </span>
-                </div>
+            {coursFiltres.map((c) => {
+              const resumeState = resumes[c.id] || {};
 
-                {/* Corps */}
-                <div className="flex flex-1 flex-col p-5">
-                  <h2 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E] line-clamp-2">
-                    {c.titre}
-                  </h2>
-
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-[#737873] line-clamp-3">
-                    {c.description}
-                  </p>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#737873]">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock size={14} />
-                      {c.duree ? `${c.duree} min` : "—"}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Globe size={14} />
-                      {c.langueCours || "—"}
+              return (
+                <article
+                  key={c.id}
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-[#E6E1D5] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#0F3D3E]/25 hover:shadow-lg"
+                >
+                  {/* En-tête de carte */}
+                  <div className="flex items-start justify-between gap-3 border-b border-[#E6E1D5]/70 bg-[#FAF8F5] px-5 py-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
+                        {getTypeIcon(c.typeContenu)}
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-[#737873]">
+                        {getTypeLabel(c.typeContenu)}
+                      </span>
+                    </div>
+                    <span className="rounded-full bg-[#EBF3F0] px-2.5 py-1 text-[11px] font-medium text-[#2A6B59]">
+                      {c.niveauCours || "—"}
                     </span>
                   </div>
-                </div>
 
-                {/* Pied de carte */}
-                <div className="border-t border-[#E6E1D5]/70 px-5 py-3.5">
-                  {c.contenuCours ? (
-                    <a
-                      href={c.contenuCours}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#2A6B59] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1e5244]"
+                  {/* Corps */}
+                  <div className="flex flex-1 flex-col p-5">
+                    <h2 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E] line-clamp-2">
+                      {c.titre}
+                    </h2>
+
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-[#737873] line-clamp-3">
+                      {c.description}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#737873]">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock size={14} />
+                        {c.duree ? `${c.duree} min` : "—"}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Globe size={14} />
+                        {c.langueCours || "—"}
+                      </span>
+                    </div>
+
+                    {/* Zone résumé IA */}
+                    {resumeState.text && (
+                      <div className="mt-4 rounded-xl border border-[#E6E1D5] bg-[#FAF8F5] p-3.5">
+                        <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#2A6B59]">
+                          <Sparkles size={13} />
+                          Résumé IA
+                        </p>
+                        <p className="text-sm leading-relaxed text-[#0F3D3E]">
+                          {resumeState.text}
+                        </p>
+                      </div>
+                    )}
+
+                    {resumeState.error && (
+                      <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                        {resumeState.error}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pied de carte */}
+                  <div className="border-t border-[#E6E1D5]/70 px-5 py-3.5 space-y-2.5">
+                    {/* Bouton résumé IA */}
+                    <button
+                      type="button"
+                      onClick={() => genererResume(c.id)}
+                      disabled={resumeState.loading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#2A6B59]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#2A6B59] transition-colors hover:bg-[#EBF3F0] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <Download size={16} />
-                      Accéder au cours
-                    </a>
-                  ) : (
-                    <span className="block text-center text-sm text-[#737873]">
-                      Fichier non disponible
-                    </span>
-                  )}
-                </div>
-              </article>
-            ))}
+                      {resumeState.loading ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Génération en cours...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          {resumeState.text
+                            ? "Régénérer le résumé"
+                            : "Résumer avec l’IA"}
+                        </>
+                      )}
+                    </button>
+
+                    {/* Deux boutons : Voir + Télécharger */}
+                    {c.contenuCours ? (
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {/* Bouton Voir le cours */}
+                        <a
+                          href={c.contenuCours}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2A6B59] bg-white px-3 py-2.5 text-sm font-semibold text-[#2A6B59] transition-colors hover:bg-[#EBF3F0]"
+                        >
+                          <Eye size={16} />
+                          Voir
+                        </a>
+
+                        {/* Bouton Télécharger */}
+                        <a
+                          href={c.contenuCours}
+                          download={c.nomOriginalFichier || true}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2A6B59] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1e5244]"
+                        >
+                          <Download size={16} />
+                          Télécharger
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="block rounded-xl border border-[#E6E1D5] bg-[#FAF8F5] px-4 py-2.5 text-center text-sm text-[#737873]">
+                        Fichier non disponible
+                      </span>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

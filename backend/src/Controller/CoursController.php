@@ -7,6 +7,8 @@ use App\Document\User;
 use App\Repository\CoursRepository;
 use App\Repository\MedecinRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Smalot\PdfParser\Parser as PdfParser;
+use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -45,7 +47,6 @@ class CoursController extends AbstractController
 
     /**
      * Génère une description de cours avec OpenRouter (IA gratuite)
-     * La description est générée selon le TITRE + la LANGUE du cours
      */
     #[Route('/generer-description', name: 'cours_generer_description', methods: ['POST'])]
     #[IsGranted('ROLE_MEDECIN')]
@@ -61,7 +62,6 @@ class CoursController extends AbstractController
             $titre = trim($data['titre'] ?? '');
             $langue = trim($data['langueCours'] ?? '');
 
-            // Titre et langue sont OBLIGATOIRES
             if ($titre === '') {
                 return $this->json(['error' => 'Le titre du cours est requis pour générer une description.'], 400);
             }
@@ -78,7 +78,6 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Clé API OpenRouter non configurée sur le serveur.'], 500);
             }
 
-            // Prompt fort qui force la langue
             $prompt = "Tu es un expert médical et pédagogue expérimenté.\n\n";
             $prompt .= "Génère une description concise, professionnelle et engageante (2 à 4 phrases maximum) pour un cours médical.\n\n";
             $prompt .= "Titre du cours : « {$titre} »\n";
@@ -153,6 +152,191 @@ class CoursController extends AbstractController
 
             return $this->json([
                 'description' => $description,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+    }
+
+    /**
+     * Génère les points les plus importants du contenu du cours (IA)
+     */
+    #[Route('/{id}/resumer', name: 'cours_resumer', methods: ['POST'])]
+    public function resumer(string $id): JsonResponse
+    {
+        try {
+            $cours = $this->coursRepository->find($id);
+
+            if (!$cours) {
+                return $this->json(['error' => 'Cours introuvable.'], 404);
+            }
+
+            if ($cours->getStatut() !== 'approuve') {
+                return $this->json(['error' => 'Ce cours n\'est pas encore disponible.'], 403);
+            }
+
+            $apiKey = $_ENV['OPENROUTER_API_KEY'] ?? null;
+            if (!$apiKey) {
+                return $this->json(['error' => 'Clé API OpenRouter non configurée sur le serveur.'], 500);
+            }
+
+            $typeContenu = $cours->getTypeContenu() ?? '';
+            $filePath = $this->getParameter('kernel.project_dir') . '/public' . $cours->getContenuCours();
+
+            if (!file_exists($filePath)) {
+                return $this->json(['error' => 'Le fichier du cours est introuvable sur le serveur.'], 404);
+            }
+
+            $texteExtrait = '';
+            $erreurExtraction = null;
+
+            // ========== EXTRACTION DU TEXTE ==========
+            if ($typeContenu === 'pdf') {
+                try {
+                    $parser = new PdfParser();
+                    $pdf = $parser->parseFile($filePath);
+                    $texteExtrait = $pdf->getText();
+                } catch (\Throwable $e) {
+                    $erreurExtraction = 'Impossible d\'extraire le texte du PDF : ' . $e->getMessage();
+                }
+            } elseif ($typeContenu === 'word') {
+                $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+                if ($extension === 'docx') {
+                    try {
+                        $phpWord = WordIOFactory::load($filePath);
+                        $texteExtrait = '';
+
+                        foreach ($phpWord->getSections() as $section) {
+                            foreach ($section->getElements() as $element) {
+                                if (method_exists($element, 'getText')) {
+                                    $texteExtrait .= $element->getText() . "\n";
+                                } elseif (method_exists($element, 'getElements')) {
+                                    foreach ($element->getElements() as $child) {
+                                        if (method_exists($child, 'getText')) {
+                                            $texteExtrait .= $child->getText() . "\n";
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        $erreurExtraction = 'Impossible d\'extraire le texte du document Word : ' . $e->getMessage();
+                    }
+                } else {
+                    $erreurExtraction = 'Les anciens fichiers .doc ne sont pas supportés. Utilisez un fichier .docx.';
+                }
+            } elseif ($typeContenu === 'video') {
+                return $this->json([
+                    'error' => 'Le résumé automatique n\'est pas encore disponible pour les vidéos. Seuls les PDF et documents Word (.docx) sont supportés.'
+                ], 400);
+            } else {
+                return $this->json(['error' => 'Type de contenu non supporté pour le résumé automatique.'], 400);
+            }
+
+            if ($erreurExtraction) {
+                return $this->json(['error' => $erreurExtraction], 500);
+            }
+
+            $texteExtrait = trim($texteExtrait);
+
+            if ($texteExtrait === '') {
+                return $this->json([
+                    'error' => 'Aucun texte n\'a pu être extrait de ce fichier. Le document est peut-être scanné (image) ou protégé.'
+                ], 400);
+            }
+
+            // Limite de taille pour éviter de dépasser les tokens
+            $texteExtrait = mb_substr($texteExtrait, 0, 12000);
+
+            $titre       = $cours->getTitre() ?? '';
+            $description = $cours->getDescription() ?? '';
+            $langue      = $cours->getLangueCours() ?? 'Français';
+            $niveau      = $cours->getNiveauCours() ?? '';
+            $duree       = $cours->getDuree() ?? null;
+
+            // ========== PROMPT SPÉCIAL POINTS IMPORTANTS ==========
+            $prompt  = "Tu es un expert médical et pédagogue expérimenté.\n\n";
+            $prompt .= "Analyse le contenu du cours médical ci-dessous et extrais UNIQUEMENT les points les plus importants.\n\n";
+            $prompt .= "=== INFORMATIONS DU COURS ===\n";
+            $prompt .= "Titre : {$titre}\n";
+            if ($description) {
+                $prompt .= "Description : {$description}\n";
+            }
+            if ($niveau) {
+                $prompt .= "Niveau : {$niveau}\n";
+            }
+            if ($duree) {
+                $prompt .= "Durée : {$duree} minutes\n";
+            }
+            $prompt .= "Langue OBLIGATOIRE de la réponse : {$langue}\n\n";
+            $prompt .= "=== CONTENU DU COURS ===\n";
+            $prompt .= $texteExtrait . "\n\n";
+            $prompt .= "=== INSTRUCTIONS STRICTES ===\n";
+            $prompt .= "- Réponds UNIQUEMENT en {$langue}.\n";
+            $prompt .= "- Présente les informations sous forme de points numérotés (1., 2., 3., etc.).\n";
+            $prompt .= "- Extrais entre 5 et 8 points maximum, les plus essentiels et importants du contenu.\n";
+            $prompt .= "- Chaque point doit être clair, concis et utile pour un étudiant.\n";
+            $prompt .= "- Ne mets aucun titre, aucune introduction, aucune conclusion.\n";
+            $prompt .= "- Ne dis pas « Voici les points importants » ou quelque chose de similaire.\n";
+            $prompt .= "- Réponds uniquement avec la liste des points numérotés.";
+
+            $response = $this->httpClient->request('POST', 'https://openrouter.ai/api/v1/chat/completions', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type'  => 'application/json',
+                    'HTTP-Referer'  => 'http://localhost:5173',
+                    'X-Title'       => 'Tbibna - Points importants cours',
+                ],
+                'json' => [
+                    'model' => 'openrouter/free',
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => "Tu es un assistant pédagogique médical spécialisé dans l'extraction des points clés. Tu réponds UNIQUEMENT avec une liste de points numérotés dans la langue demandée, sans aucun autre texte.",
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt,
+                        ],
+                    ],
+                    'temperature' => 0.4,
+                    'max_tokens'  => 700,
+                ],
+                'timeout' => 60,
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            $body = $response->toArray(false);
+
+            if ($statusCode !== 200) {
+                $rawMessage = $body['error']['message'] ?? ($body['message'] ?? 'Erreur inconnue de l\'API OpenRouter');
+
+                if ($statusCode === 402 || stripos($rawMessage, 'insufficient') !== false || stripos($rawMessage, 'credits') !== false) {
+                    return $this->json([
+                        'error' => 'Crédits OpenRouter insuffisants ou limite gratuite atteinte. Réessayez plus tard.'
+                    ], 402);
+                }
+
+                if ($statusCode === 401) {
+                    return $this->json(['error' => 'Clé API OpenRouter invalide ou expirée.'], 401);
+                }
+
+                if ($statusCode === 429) {
+                    return $this->json(['error' => 'Trop de requêtes. Attendez quelques secondes et réessayez.'], 429);
+                }
+
+                return $this->json(['error' => 'Erreur IA : ' . $rawMessage], 502);
+            }
+
+            $resume = trim($body['choices'][0]['message']['content'] ?? '');
+
+            if ($resume === '') {
+                return $this->json(['error' => 'Aucun point important généré par l\'IA.'], 502);
+            }
+
+            return $this->json([
+                'resume' => $resume,
             ]);
         } catch (\Throwable $e) {
             return $this->handleException($e);
