@@ -11,6 +11,8 @@ import MesCours from "./Components/dashboard/MesCours";
 import AdminCours from "./Components/dashboard/AdminCours";
 import Profile from "./Components/profile/Profile";
 import CoursEtudiant from "./Components/dashboard/CoursEtudiant";
+import MesActivites from "./Components/dashboard/MesActivites";
+import AjouterActivite from "./Components/medecin/AjouterActivite";
 
 import {
   BookOpen,
@@ -386,6 +388,26 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
                 <AjouterCours />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Liste des activités du médecin */}
+          <Route
+            path="/dashboard/medecin/activites"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <MesActivites />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ajout d'une activité */}
+          <Route
+            path="/dashboard/medecin/activites/ajouter"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <AjouterActivite />
               </ProtectedRoute>
             }
           />

@@ -78,20 +78,23 @@ function getNavLinks(user) {
   const etudiant = isEtudiant(user);
 
   let coursLink;
+  let activitesLink;
 
   if (admin) {
     coursLink = { label: "Cours", to: "/dashboard/admin/cours" };
+    activitesLink = { label: "Activités", href: "#activites" };
   } else if (medecin) {
     coursLink = { label: "Cours", to: "/dashboard/medecin/cours" };
+    activitesLink = { label: "Activités", to: "/dashboard/medecin/activites" };
   } else if (etudiant) {
-    // Étudiant connecté → page des cours approuvés
     coursLink = { label: "Cours", to: "/dashboard/etudiant/cours" };
+    activitesLink = { label: "Activités", href: "#activites" };
   } else {
-    // Non connecté → ancre sur la page d'accueil
     coursLink = { label: "Cours", href: "#cours" };
+    activitesLink = { label: "Activités", href: "#activites" };
   }
 
-  return [coursLink, ...BASE_NAV_LINKS];
+  return [coursLink, activitesLink, ...BASE_NAV_LINKS.filter((l) => l.label !== "Activités")];
 }
 
 export default function Navbar() {
@@ -164,7 +167,6 @@ export default function Navbar() {
                   onClick={handleLogout}
                   className="navbar__logout"
                 >
-                  <LogOut size={16} />
                   Se déconnecter
                 </button>
               </>

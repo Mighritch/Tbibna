@@ -4,7 +4,7 @@ namespace App\Repository;
 
 use App\Document\Formation;
 use Doctrine\Bundle\MongoDBBundle\Repository\ServiceDocumentRepository;
-use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 
 class FormationRepository extends ServiceDocumentRepository
 {
