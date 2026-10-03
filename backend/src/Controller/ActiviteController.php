@@ -49,6 +49,8 @@ class ActiviteController extends AbstractController
                 isset($payload['duree']) ? (int) $payload['duree'] : null
             );
             $activite->setMedecin($medecin);
+            // Statut forcé à "en_attente" — l'admin devra l'accepter
+            $activite->setStatut('en_attente');
 
             $errors = $validator->validate($activite);
 
@@ -69,7 +71,7 @@ class ActiviteController extends AbstractController
 
             return $this->json([
                 'id' => $activite->getId(),
-                'message' => 'L\'activité a été ajoutée avec succès.'
+                'message' => 'L\'activité a été ajoutée avec succès. Elle sera visible sur la plateforme après validation par un administrateur.'
             ], 201);
         }
 
@@ -87,6 +89,7 @@ class ActiviteController extends AbstractController
                     'instructions' => $a->getInstructions(),
                     'difficulte' => $a->getDifficulte(),
                     'duree' => $a->getDuree(),
+                    'statut' => $a->getStatut(),
                     'createdAt' => $a->getCreatedAt()?->format('c'),
                 ],
                 $activites
@@ -167,6 +170,9 @@ class ActiviteController extends AbstractController
                 );
             }
 
+            // Le médecin ne peut PAS changer le statut lui-même
+            // (seul un admin pourra le faire)
+
             $errors = $validator->validate($activite);
 
             if (count($errors) > 0) {
@@ -197,6 +203,7 @@ class ActiviteController extends AbstractController
                 'instructions' => $activite->getInstructions(),
                 'difficulte' => $activite->getDifficulte(),
                 'duree' => $activite->getDuree(),
+                'statut' => $activite->getStatut(),
                 'createdAt' => $activite->getCreatedAt()?->format('c'),
             ]);
         }
@@ -220,13 +227,14 @@ class ActiviteController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $activite->setMedecin($medecin);
+            $activite->setStatut('en_attente');
 
             $dm->persist($activite);
             $dm->flush();
 
             $this->addFlash(
                 'success',
-                'L\'activité a été ajoutée avec succès.'
+                'L\'activité a été ajoutée avec succès. Elle sera visible après validation par un administrateur.'
             );
 
             return $this->redirectToRoute('app_activite_index');

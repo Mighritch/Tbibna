@@ -72,6 +72,7 @@ export default function AjouterActivite() {
 
           <p className="mt-1 text-[#5C5A54]">
             Créez une nouvelle activité pour vos étudiants.
+            Elle sera visible sur la plateforme uniquement après validation par un administrateur.
           </p>
         </div>
 
@@ -226,4 +227,3 @@ export default function AjouterActivite() {
     </div>
   );
 }
-

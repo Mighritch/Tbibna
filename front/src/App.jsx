@@ -9,6 +9,7 @@ import DashboardMedecin from "./Components/dashboard/DashboardMedecin";
 import AjouterCours from "./Components/medecin/AjouterCours";
 import MesCours from "./Components/dashboard/MesCours";
 import AdminCours from "./Components/dashboard/AdminCours";
+import AdminActivites from "./Components/dashboard/AdminActivites"; // ← AJOUTÉ
 import Profile from "./Components/profile/Profile";
 import CoursEtudiant from "./Components/dashboard/CoursEtudiant";
 import MesActivites from "./Components/dashboard/MesActivites";
@@ -426,6 +427,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <AdminCours />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ← ROUTE ADMIN ACTIVITÉS (manquait) */}
+          <Route
+            path="/dashboard/admin/activites"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <AdminActivites />
               </ProtectedRoute>
             }
           />

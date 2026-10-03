@@ -15,6 +15,12 @@ class Activite
         'Difficile' => 'difficile',
     ];
 
+    public const STATUTS = [
+        'En attente' => 'en_attente',
+        'Acceptée'   => 'accepte',
+        'Refusée'    => 'refuse',
+    ];
+
     #[ODM\Id]
     private ?string $id = null;
 
@@ -41,6 +47,10 @@ class Activite
     #[Assert\Positive(message: "La durée doit être supérieure à 0.")]
     private ?int $duree = null;
 
+    #[ODM\Field(type: "string")]
+    #[Assert\Choice(choices: ['en_attente', 'accepte', 'refuse'])]
+    private string $statut = 'en_attente';
+
     #[ODM\ReferenceOne(targetDocument: Medecin::class, storeAs: "id")]
     private ?Medecin $medecin = null;
 
@@ -50,6 +60,7 @@ class Activite
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
+        $this->statut = 'en_attente';
     }
 
     public function getId(): ?string
@@ -109,6 +120,17 @@ class Activite
     public function setDuree(?int $duree): static
     {
         $this->duree = $duree;
+        return $this;
+    }
+
+    public function getStatut(): string
+    {
+        return $this->statut;
+    }
+
+    public function setStatut(string $statut): static
+    {
+        $this->statut = $statut;
         return $this;
     }
 

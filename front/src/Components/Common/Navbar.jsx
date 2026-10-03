@@ -5,7 +5,6 @@ import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
 const BASE_NAV_LINKS = [
-  { label: "Activités", href: "#activites" },
   { label: "Examens", href: "#examens" },
   { label: "Formations", href: "#formations" },
   { label: "Évènements", href: "#evenements" },
@@ -82,7 +81,7 @@ function getNavLinks(user) {
 
   if (admin) {
     coursLink = { label: "Cours", to: "/dashboard/admin/cours" };
-    activitesLink = { label: "Activités", href: "#activites" };
+    activitesLink = { label: "Activités", to: "/dashboard/admin/activites" };
   } else if (medecin) {
     coursLink = { label: "Cours", to: "/dashboard/medecin/cours" };
     activitesLink = { label: "Activités", to: "/dashboard/medecin/activites" };
@@ -94,7 +93,7 @@ function getNavLinks(user) {
     activitesLink = { label: "Activités", href: "#activites" };
   }
 
-  return [coursLink, activitesLink, ...BASE_NAV_LINKS.filter((l) => l.label !== "Activités")];
+  return [coursLink, activitesLink, ...BASE_NAV_LINKS];
 }
 
 export default function Navbar() {

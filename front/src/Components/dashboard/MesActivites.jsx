@@ -11,6 +11,9 @@ import {
   X,
   Save,
   Eye,
+  CheckCircle2,
+  XCircle,
+  Hourglass,
 } from "lucide-react";
 
 export default function MesActivites() {
@@ -214,7 +217,31 @@ export default function MesActivites() {
     setViewingActivite(null);
   };
 
-  
+  const getStatutBadge = (statut) => {
+    switch (statut) {
+      case "accepte":
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+            <CheckCircle2 size={13} />
+            Acceptée
+          </span>
+        );
+      case "refuse":
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+            <XCircle size={13} />
+            Refusée
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+            <Hourglass size={13} />
+            En attente
+          </span>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
@@ -227,6 +254,7 @@ export default function MesActivites() {
 
             <p className="mt-1 text-[#5C5A54]">
               Gérez les activités que vous proposez aux étudiants.
+              Elles ne seront visibles sur la plateforme qu’après validation par un administrateur.
             </p>
           </div>
 
@@ -282,7 +310,7 @@ export default function MesActivites() {
                   <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
                     {act.titre}
                   </h2>
-
+                  {getStatutBadge(act.statut)}
                 </div>
 
                 <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
@@ -363,6 +391,7 @@ export default function MesActivites() {
                 <h3 className="text-lg font-semibold text-[#0F3D3E]">
                   {viewingActivite.titre}
                 </h3>
+                {getStatutBadge(viewingActivite.statut)}
               </div>
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-[#737873]">
@@ -375,6 +404,18 @@ export default function MesActivites() {
                   {viewingActivite.difficulte}
                 </span>
               </div>
+
+              {viewingActivite.statut === "en_attente" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Cette activité est en attente de validation par un administrateur. Elle n’est pas encore visible sur la plateforme.
+                </div>
+              )}
+
+              {viewingActivite.statut === "refuse" && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                  Cette activité a été refusée par un administrateur.
+                </div>
+              )}
 
               <div>
                 <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">
