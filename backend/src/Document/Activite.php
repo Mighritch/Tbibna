@@ -57,6 +57,9 @@ class Activite
     #[ODM\Field(type: "date_immutable")]
     private ?\DateTimeImmutable $createdAt = null;
 
+    #[ODM\Field(type: "collection")]
+    private array $favoris = [];
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -148,5 +151,38 @@ class Activite
     public function getCreatedAt(): ?\DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getFavoris(): array
+    {
+        return $this->favoris;
+    }
+
+    public function setFavoris(array $favoris): self
+    {
+        $this->favoris = $favoris;
+        return $this;
+    }
+
+    public function addFavori(string $etudiantId): self
+    {
+        if (!in_array($etudiantId, $this->favoris, true)) {
+            $this->favoris[] = $etudiantId;
+        }
+        return $this;
+    }
+
+    public function removeFavori(string $etudiantId): self
+    {
+        $this->favoris = array_values(array_filter(
+            $this->favoris,
+            fn($id) => $id !== $etudiantId
+        ));
+        return $this;
+    }
+
+    public function isFavoriPar(string $etudiantId): bool
+    {
+        return in_array($etudiantId, $this->favoris, true);
     }
 }

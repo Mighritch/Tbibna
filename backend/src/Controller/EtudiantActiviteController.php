@@ -78,6 +78,7 @@ class EtudiantActiviteController extends AbstractController
                 'createdAt'    => $activite->getCreatedAt()?->format('c'),
                 'medecinNom'   => $medecinNom ?: 'Médecin',
                 'aDejaSoumis'  => $soumission !== null,
+                'isFavori'     => $activite->isFavoriPar($etudiant->getId()), // ← AJOUTÉ
                 'soumission'   => $soumission ? [
                     'id'                  => $soumission->getId(),
                     'contenu'             => $soumission->getContenu(),
@@ -93,6 +94,49 @@ class EtudiantActiviteController extends AbstractController
         return $this->json($data);
     }
 
+    // ==================== FAVORIS ====================
+    #[Route('/{id}/favori', name: 'app_etudiant_activite_favori', methods: ['POST', 'DELETE'])]
+    public function toggleFavori(
+        string $id,
+        Request $request,
+        DocumentManager $dm,
+        ActiviteRepository $activiteRepository,
+        EtudiantRepository $etudiantRepository
+    ): Response {
+        $etudiant = $this->getEtudiantConnecte($etudiantRepository);
+        $activite = $activiteRepository->find($id);
+
+        if (!$activite) {
+            return $this->json(['message' => 'Activité introuvable.'], 404);
+        }
+
+        if ($activite->getStatut() !== 'accepte') {
+            return $this->json(['message' => 'Cette activité n\'est pas encore disponible.'], 403);
+        }
+
+        $etudiantId = $etudiant->getId();
+
+        if ($request->isMethod('POST')) {
+            $activite->addFavori($etudiantId);
+            $dm->flush();
+
+            return $this->json([
+                'message'  => 'Activité ajoutée aux favoris.',
+                'isFavori' => true,
+            ]);
+        }
+
+        // DELETE
+        $activite->removeFavori($etudiantId);
+        $dm->flush();
+
+        return $this->json([
+            'message'  => 'Activité retirée des favoris.',
+            'isFavori' => false,
+        ]);
+    }
+
+    // ==================== SOUMISSION ====================
     #[Route('/{id}/soumettre', name: 'app_etudiant_activite_soumettre', methods: ['POST'])]
     public function soumettre(
         string $id,

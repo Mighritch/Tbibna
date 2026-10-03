@@ -11,6 +11,7 @@ import {
   Send,
   CheckCircle2,
   FileText,
+  Heart,
 } from "lucide-react";
 
 export default function ActivitesEtudiant() {
@@ -20,12 +21,15 @@ export default function ActivitesEtudiant() {
   const [viewingActivite, setViewingActivite] = useState(null);
 
   const [sortDifficulte, setSortDifficulte] = useState("");
+  const [filterFavoris, setFilterFavoris] = useState(false);
 
   const [contenuTravail, setContenuTravail] = useState("");
   const [commentaireEtudiant, setCommentaireEtudiant] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
+
+  const [togglingFavori, setTogglingFavori] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,15 +81,22 @@ export default function ActivitesEtudiant() {
       result = result.filter((a) => a.difficulte === sortDifficulte);
     }
 
+    if (filterFavoris) {
+      result = result.filter((a) => a.isFavori);
+    }
+
     const ordreDifficulte = { facile: 1, moyen: 2, difficile: 3 };
     result.sort((a, b) => {
+      if (a.isFavori && !b.isFavori) return -1;
+      if (!a.isFavori && b.isFavori) return 1;
+
       const dA = ordreDifficulte[a.difficulte] || 99;
       const dB = ordreDifficulte[b.difficulte] || 99;
       return dA - dB;
     });
 
     return result;
-  }, [activites, sortDifficulte]);
+  }, [activites, sortDifficulte, filterFavoris]);
 
   const openViewModal = (act) => {
     setViewingActivite(act);
@@ -101,6 +112,47 @@ export default function ActivitesEtudiant() {
     setCommentaireEtudiant("");
     setSubmitError(null);
     setSubmitSuccess(null);
+  };
+
+  const handleToggleFavori = async (act, e) => {
+    e?.stopPropagation();
+    if (togglingFavori) return;
+
+    setTogglingFavori(act.id);
+
+    try {
+      const method = act.isFavori ? "DELETE" : "POST";
+      const res = await fetch(`/api/etudiant/activites/${act.id}/favori`, {
+        method,
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Erreur lors de la mise à jour des favoris");
+      }
+
+      setActivites((prev) =>
+        prev.map((a) =>
+          a.id === act.id ? { ...a, isFavori: data.isFavori } : a
+        )
+      );
+
+      setViewingActivite((prev) =>
+        prev && prev.id === act.id
+          ? { ...prev, isFavori: data.isFavori }
+          : prev
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Une erreur est survenue");
+    } finally {
+      setTogglingFavori(null);
+    }
   };
 
   const handleSubmitTravail = async (e) => {
@@ -215,10 +267,29 @@ export default function ActivitesEtudiant() {
               </select>
             </div>
 
-            {sortDifficulte && (
+            <button
+              type="button"
+              onClick={() => setFilterFavoris((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                filterFavoris
+                  ? "border-rose-300 bg-rose-50 text-rose-700"
+                  : "border-[#E4DFD3] bg-[#FAF8F5] text-[#0F3D3E] hover:bg-white"
+              }`}
+            >
+              <Heart
+                size={14}
+                className={filterFavoris ? "fill-rose-500 text-rose-500" : ""}
+              />
+              Favoris uniquement
+            </button>
+
+            {(sortDifficulte || filterFavoris) && (
               <button
                 type="button"
-                onClick={() => setSortDifficulte("")}
+                onClick={() => {
+                  setSortDifficulte("");
+                  setFilterFavoris(false);
+                }}
                 className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
               >
                 Réinitialiser
@@ -273,12 +344,32 @@ export default function ActivitesEtudiant() {
                   <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
                     {act.titre}
                   </h2>
-                  {act.aDejaSoumis && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                      <CheckCircle2 size={12} />
-                      Soumis
-                    </span>
-                  )}
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {act.aDejaSoumis && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        <CheckCircle2 size={12} />
+                        Soumis
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleFavori(act, e)}
+                      disabled={togglingFavori === act.id}
+                      className={`rounded-full p-1.5 transition ${
+                        act.isFavori
+                          ? "text-rose-500 hover:bg-rose-50"
+                          : "text-[#A8A59D] hover:bg-gray-100 hover:text-rose-400"
+                      }`}
+                      title={act.isFavori ? "Retirer des favoris" : "Ajouter aux favoris"}
+                    >
+                      <Heart
+                        size={18}
+                        className={act.isFavori ? "fill-current" : ""}
+                      />
+                    </button>
+                  </div>
                 </div>
 
                 <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
@@ -324,13 +415,35 @@ export default function ActivitesEtudiant() {
               <h2 className="text-xl font-semibold text-[#0F3D3E]">
                 Détails de l’activité
               </h2>
-              <button
-                type="button"
-                onClick={closeViewModal}
-                className="rounded-lg p-1.5 text-[#5C5A54] transition hover:bg-gray-100"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleFavori(viewingActivite, e)}
+                  disabled={togglingFavori === viewingActivite.id}
+                  className={`rounded-lg p-1.5 transition ${
+                    viewingActivite.isFavori
+                      ? "text-rose-500 hover:bg-rose-50"
+                      : "text-[#A8A59D] hover:bg-gray-100 hover:text-rose-400"
+                  }`}
+                  title={
+                    viewingActivite.isFavori
+                      ? "Retirer des favoris"
+                      : "Ajouter aux favoris"
+                  }
+                >
+                  <Heart
+                    size={20}
+                    className={viewingActivite.isFavori ? "fill-current" : ""}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={closeViewModal}
+                  className="rounded-lg p-1.5 text-[#5C5A54] transition hover:bg-gray-100"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-6 p-6">
