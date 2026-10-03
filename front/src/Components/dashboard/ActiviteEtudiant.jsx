@@ -8,6 +8,9 @@ import {
   X,
   User,
   ArrowUpDown,
+  Send,
+  CheckCircle2,
+  FileText,
 } from "lucide-react";
 
 export default function ActivitesEtudiant() {
@@ -16,8 +19,13 @@ export default function ActivitesEtudiant() {
   const [error, setError] = useState(null);
   const [viewingActivite, setViewingActivite] = useState(null);
 
-  // === TRI ===
-  const [sortDifficulte, setSortDifficulte] = useState(""); // "" | "facile" | "moyen" | "difficile"
+  const [sortDifficulte, setSortDifficulte] = useState("");
+
+  const [contenuTravail, setContenuTravail] = useState("");
+  const [commentaireEtudiant, setCommentaireEtudiant] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,16 +70,13 @@ export default function ActivitesEtudiant() {
     };
   }, []);
 
-  // Liste triée / filtrée
   const activitesFiltrees = useMemo(() => {
     let result = [...activites];
 
-    // Filtre par difficulté
     if (sortDifficulte) {
       result = result.filter((a) => a.difficulte === sortDifficulte);
     }
 
-    // Tri par difficulté (facile → moyen → difficile)
     const ordreDifficulte = { facile: 1, moyen: 2, difficile: 3 };
     result.sort((a, b) => {
       const dA = ordreDifficulte[a.difficulte] || 99;
@@ -84,16 +89,101 @@ export default function ActivitesEtudiant() {
 
   const openViewModal = (act) => {
     setViewingActivite(act);
+    setContenuTravail("");
+    setCommentaireEtudiant("");
+    setSubmitError(null);
+    setSubmitSuccess(null);
   };
 
   const closeViewModal = () => {
     setViewingActivite(null);
+    setContenuTravail("");
+    setCommentaireEtudiant("");
+    setSubmitError(null);
+    setSubmitSuccess(null);
+  };
+
+  const handleSubmitTravail = async (e) => {
+    e.preventDefault();
+    if (!viewingActivite) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const res = await fetch(
+        `/api/etudiant/activites/${viewingActivite.id}/soumettre`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            contenu: contenuTravail,
+            commentaireEtudiant: commentaireEtudiant || null,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Erreur lors de la soumission");
+      }
+
+      setSubmitSuccess(data.message || "Travail soumis avec succès !");
+
+      setActivites((prev) =>
+        prev.map((a) =>
+          a.id === viewingActivite.id
+            ? {
+                ...a,
+                aDejaSoumis: true,
+                soumission: {
+                  id: data.id,
+                  contenu: contenuTravail,
+                  commentaireEtudiant: commentaireEtudiant || null,
+                  statut: data.statut || "soumis",
+                  note: null,
+                  commentaireMedecin: null,
+                  createdAt: new Date().toISOString(),
+                },
+              }
+            : a
+        )
+      );
+
+      setViewingActivite((prev) =>
+        prev
+          ? {
+              ...prev,
+              aDejaSoumis: true,
+              soumission: {
+                id: data.id,
+                contenu: contenuTravail,
+                commentaireEtudiant: commentaireEtudiant || null,
+                statut: data.statut || "soumis",
+                note: null,
+                commentaireMedecin: null,
+                createdAt: new Date().toISOString(),
+              },
+            }
+          : null
+      );
+    } catch (err) {
+      console.error(err);
+      setSubmitError(err.message || "Une erreur est survenue");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-5xl">
-        {/* Header */}
         <div className="mb-10">
           <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
             Activités disponibles
@@ -104,7 +194,6 @@ export default function ActivitesEtudiant() {
           </p>
         </div>
 
-        {/* Filtres de tri */}
         {!loading && !error && activites.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
@@ -138,7 +227,6 @@ export default function ActivitesEtudiant() {
           </div>
         )}
 
-        {/* Contenu */}
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#0F3D3E] border-t-transparent" />
@@ -185,6 +273,12 @@ export default function ActivitesEtudiant() {
                   <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
                     {act.titre}
                   </h2>
+                  {act.aDejaSoumis && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                      <CheckCircle2 size={12} />
+                      Soumis
+                    </span>
+                  )}
                 </div>
 
                 <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
@@ -214,7 +308,7 @@ export default function ActivitesEtudiant() {
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
                   >
                     <Eye size={16} />
-                    Voir les instructions
+                    {act.aDejaSoumis ? "Voir ma soumission" : "Voir & Soumettre"}
                   </button>
                 </div>
               </div>
@@ -223,7 +317,6 @@ export default function ActivitesEtudiant() {
         )}
       </div>
 
-      {/* Modal de visualisation */}
       {viewingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
@@ -278,6 +371,127 @@ export default function ActivitesEtudiant() {
                 <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
                   {viewingActivite.instructions || "—"}
                 </p>
+              </div>
+
+              <div className="border-t border-[#E4DFD3] pt-6">
+                <h4 className="mb-4 flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
+                  <FileText size={16} />
+                  Mon travail
+                </h4>
+
+                {viewingActivite.aDejaSoumis && viewingActivite.soumission ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      <CheckCircle2 size={18} />
+                      <span>
+                        Travail soumis le{" "}
+                        {new Date(
+                          viewingActivite.soumission.createdAt
+                        ).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-xs font-medium text-[#5C5A54]">
+                        Contenu soumis
+                      </p>
+                      <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
+                        {viewingActivite.soumission.contenu}
+                      </p>
+                    </div>
+
+                    {viewingActivite.soumission.commentaireEtudiant && (
+                      <div>
+                        <p className="mb-1 text-xs font-medium text-[#5C5A54]">
+                          Votre commentaire
+                        </p>
+                        <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
+                          {viewingActivite.soumission.commentaireEtudiant}
+                        </p>
+                      </div>
+                    )}
+
+                    {viewingActivite.soumission.note !== null && (
+                      <div className="rounded-xl border border-[#E4DFD3] bg-white px-4 py-3">
+                        <p className="text-sm font-medium text-[#0F3D3E]">
+                          Note : {viewingActivite.soumission.note}/20
+                        </p>
+                        {viewingActivite.soumission.commentaireMedecin && (
+                          <p className="mt-1 text-sm text-[#5C5A54]">
+                            {viewingActivite.soumission.commentaireMedecin}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmitTravail} className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[#5C5A54]">
+                        Votre travail <span className="text-rose-500">*</span>
+                      </label>
+                      <textarea
+                        value={contenuTravail}
+                        onChange={(e) => setContenuTravail(e.target.value)}
+                        required
+                        rows={6}
+                        placeholder="Rédigez ici votre réponse / rapport / analyse selon les instructions..."
+                        className="w-full rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#0F3D3E] outline-none transition focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[#5C5A54]">
+                        Commentaire (optionnel)
+                      </label>
+                      <textarea
+                        value={commentaireEtudiant}
+                        onChange={(e) => setCommentaireEtudiant(e.target.value)}
+                        rows={2}
+                        placeholder="Ajoutez un commentaire si nécessaire..."
+                        className="w-full rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#0F3D3E] outline-none transition focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+                      />
+                    </div>
+
+                    {submitError && (
+                      <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                        <AlertCircle size={16} />
+                        {submitError}
+                      </div>
+                    )}
+
+                    {submitSuccess && (
+                      <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                        <CheckCircle2 size={16} />
+                        {submitSuccess}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={submitting || !contenuTravail.trim()}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#082829] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Envoi en cours...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={16} />
+                          Soumettre mon travail
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
 
