@@ -10,6 +10,7 @@ import {
   Trash2,
   X,
   Save,
+  Eye,
 } from "lucide-react";
 
 export default function MesActivites() {
@@ -18,7 +19,6 @@ export default function MesActivites() {
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  // État pour la modale de modification
   const [editingActivite, setEditingActivite] = useState(null);
   const [form, setForm] = useState({
     titre: "",
@@ -31,7 +31,8 @@ export default function MesActivites() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  // ========== CHARGEMENT DES ACTIVITÉS ==========
+  const [viewingActivite, setViewingActivite] = useState(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -76,7 +77,6 @@ export default function MesActivites() {
     };
   }, []);
 
-  // ========== SUPPRESSION ==========
   const handleDelete = async (id) => {
     if (
       !window.confirm(
@@ -113,7 +113,6 @@ export default function MesActivites() {
     }
   };
 
-  // ========== MODIFICATION ==========
   const openEditModal = (act) => {
     setEditingActivite(act);
 
@@ -183,7 +182,6 @@ export default function MesActivites() {
         );
       }
 
-      // Mise à jour de la liste locale
       setActivites((prev) =>
         prev.map((a) =>
           a.id === editingActivite.id
@@ -208,22 +206,19 @@ export default function MesActivites() {
     }
   };
 
-  // ========== BADGE DIFFICULTÉ ==========
-  const difficulteBadge = (diff) => {
-    const styles = {
-      facile: "bg-emerald-100 text-emerald-800",
-      moyen: "bg-amber-100 text-amber-800",
-      difficile: "bg-rose-100 text-rose-800",
-    };
-
-    return styles[diff] || "bg-gray-100 text-gray-800";
+  const openViewModal = (act) => {
+    setViewingActivite(act);
   };
+
+  const closeViewModal = () => {
+    setViewingActivite(null);
+  };
+
+  
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-5xl">
-
-        {/* Header */}
         <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
@@ -244,7 +239,6 @@ export default function MesActivites() {
           </Link>
         </div>
 
-        {/* Contenu */}
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#0F3D3E] border-t-transparent" />
@@ -289,13 +283,6 @@ export default function MesActivites() {
                     {act.titre}
                   </h2>
 
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${difficulteBadge(
-                      act.difficulte
-                    )}`}
-                  >
-                    {act.difficulte}
-                  </span>
                 </div>
 
                 <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
@@ -314,8 +301,16 @@ export default function MesActivites() {
                   </span>
                 </div>
 
-                {/* Boutons Modifier + Supprimer */}
-                <div className="mt-6 flex items-center gap-3 border-t border-[#E4DFD3] pt-4">
+                <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[#E4DFD3] pt-4">
+                  <button
+                    type="button"
+                    onClick={() => openViewModal(act)}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                  >
+                    <Eye size={16} />
+                    Voir instructions
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => openEditModal(act)}
@@ -346,12 +341,76 @@ export default function MesActivites() {
         )}
       </div>
 
-      {/* ========== MODALE DE MODIFICATION ========== */}
+      {viewingActivite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-[#E4DFD3] bg-white px-6 py-4">
+              <h2 className="text-xl font-semibold text-[#0F3D3E]">
+                Instructions de l'activité
+              </h2>
+
+              <button
+                type="button"
+                onClick={closeViewModal}
+                className="rounded-lg p-1.5 text-[#5C5A54] transition hover:bg-gray-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-6 p-6">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-lg font-semibold text-[#0F3D3E]">
+                  {viewingActivite.titre}
+                </h3>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 text-sm text-[#737873]">
+                <span className="flex items-center gap-1.5">
+                  <Clock size={16} />
+                  {viewingActivite.duree} min
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <BarChart3 size={16} />
+                  {viewingActivite.difficulte}
+                </span>
+              </div>
+
+              <div>
+                <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">
+                  Description
+                </h4>
+                <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
+                  {viewingActivite.description || "—"}
+                </p>
+              </div>
+
+              <div>
+                <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">
+                  Instructions
+                </h4>
+                <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
+                  {viewingActivite.instructions || "—"}
+                </p>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 flex justify-end border-t border-[#E4DFD3] bg-white px-6 py-4">
+              <button
+                type="button"
+                onClick={closeViewModal}
+                className="rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
-
-            {/* En-tête de la modale */}
             <div className="sticky top-0 flex items-center justify-between border-b border-[#E4DFD3] bg-white px-6 py-4">
               <h2 className="text-xl font-semibold text-[#0F3D3E]">
                 Modifier l'activité
@@ -366,7 +425,6 @@ export default function MesActivites() {
               </button>
             </div>
 
-            {/* Formulaire */}
             <form
               onSubmit={handleUpdate}
               className="p-6"
@@ -379,8 +437,6 @@ export default function MesActivites() {
               )}
 
               <div className="space-y-5">
-
-                {/* Titre */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                     Titre *
@@ -398,7 +454,6 @@ export default function MesActivites() {
                   />
                 </div>
 
-                {/* Description */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                     Description *
@@ -414,7 +469,6 @@ export default function MesActivites() {
                   />
                 </div>
 
-                {/* Instructions */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                     Instructions *
@@ -430,9 +484,7 @@ export default function MesActivites() {
                   />
                 </div>
 
-                {/* Difficulté + Durée */}
                 <div className="grid gap-5 sm:grid-cols-2">
-
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                       Difficulté *
@@ -481,7 +533,6 @@ export default function MesActivites() {
                 </div>
               </div>
 
-              {/* Boutons de la modale */}
               <div className="mt-8 flex flex-wrap items-center justify-end gap-3">
                 <button
                   type="button"
