@@ -28,7 +28,7 @@ class SoumissionActivite
     private ?string $commentaireEtudiant = null;
 
     #[ODM\Field(type: 'string')]
-    private string $statut = 'soumis';
+    private string $statut = 'realise';   // ← modifié : par défaut "réalisé"
 
     #[ODM\Field(type: 'float', nullable: true)]
     private ?float $note = null;

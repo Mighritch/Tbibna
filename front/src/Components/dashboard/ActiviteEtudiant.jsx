@@ -186,7 +186,7 @@ export default function ActivitesEtudiant() {
         throw new Error(data.message || "Erreur lors de la soumission");
       }
 
-      setSubmitSuccess(data.message || "Travail soumis avec succès !");
+      setSubmitSuccess(data.message || "Travail soumis avec succès ! L'activité est maintenant réalisée.");
 
       setActivites((prev) =>
         prev.map((a) =>
@@ -198,7 +198,7 @@ export default function ActivitesEtudiant() {
                   id: data.id,
                   contenu: contenuTravail,
                   commentaireEtudiant: commentaireEtudiant || null,
-                  statut: data.statut || "soumis",
+                  statut: data.statut || "realise",
                   note: null,
                   commentaireMedecin: null,
                   createdAt: new Date().toISOString(),
@@ -217,7 +217,7 @@ export default function ActivitesEtudiant() {
                 id: data.id,
                 contenu: contenuTravail,
                 commentaireEtudiant: commentaireEtudiant || null,
-                statut: data.statut || "soumis",
+                statut: data.statut || "realise",
                 note: null,
                 commentaireMedecin: null,
                 createdAt: new Date().toISOString(),
@@ -349,7 +349,7 @@ export default function ActivitesEtudiant() {
                     {act.aDejaSoumis && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                         <CheckCircle2 size={12} />
-                        Soumis
+                        Réalisé
                       </span>
                     )}
 
@@ -399,7 +399,7 @@ export default function ActivitesEtudiant() {
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
                   >
                     <Eye size={16} />
-                    {act.aDejaSoumis ? "Voir ma soumission" : "Voir & Soumettre"}
+                    {act.aDejaSoumis ? "Voir ma réalisation" : "Voir & Soumettre"}
                   </button>
                 </div>
               </div>
@@ -497,7 +497,7 @@ export default function ActivitesEtudiant() {
                     <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                       <CheckCircle2 size={18} />
                       <span>
-                        Travail soumis le{" "}
+                        Activité réalisée le{" "}
                         {new Date(
                           viewingActivite.soumission.createdAt
                         ).toLocaleDateString("fr-FR", {

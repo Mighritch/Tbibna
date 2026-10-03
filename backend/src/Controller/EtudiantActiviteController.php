@@ -78,7 +78,7 @@ class EtudiantActiviteController extends AbstractController
                 'createdAt'    => $activite->getCreatedAt()?->format('c'),
                 'medecinNom'   => $medecinNom ?: 'Médecin',
                 'aDejaSoumis'  => $soumission !== null,
-                'isFavori'     => $activite->isFavoriPar($etudiant->getId()), // ← AJOUTÉ
+                'isFavori'     => $activite->isFavoriPar($etudiant->getId()),
                 'soumission'   => $soumission ? [
                     'id'                  => $soumission->getId(),
                     'contenu'             => $soumission->getContenu(),
@@ -181,7 +181,7 @@ class EtudiantActiviteController extends AbstractController
         $soumission->setEtudiant($etudiant);
         $soumission->setContenu($payload['contenu'] ?? null);
         $soumission->setCommentaireEtudiant($payload['commentaireEtudiant'] ?? null);
-        $soumission->setStatut('soumis');
+        $soumission->setStatut('realise');   // ← modifié : activité marquée comme réalisée
 
         $errors = $validator->validate($soumission);
 
@@ -198,7 +198,7 @@ class EtudiantActiviteController extends AbstractController
 
         return $this->json([
             'id'      => $soumission->getId(),
-            'message' => 'Votre travail a été soumis avec succès. Il sera corrigé par le médecin.',
+            'message' => 'Votre travail a été soumis avec succès. L\'activité est maintenant marquée comme réalisée.',
             'statut'  => $soumission->getStatut(),
         ], 201);
     }
