@@ -12,6 +12,7 @@ import AdminCours from "./Components/dashboard/AdminCours";
 import AdminActivites from "./Components/dashboard/AdminActivites"; // ← AJOUTÉ
 import Profile from "./Components/profile/Profile";
 import CoursEtudiant from "./Components/dashboard/CoursEtudiant";
+import ActivitesEtudiant from "./Components/dashboard/ActiviteEtudiant"; // ← AJOUTÉ
 import MesActivites from "./Components/dashboard/MesActivites";
 import AjouterActivite from "./Components/medecin/AjouterActivite";
 
@@ -364,6 +365,16 @@ function App() {
             }
           />
 
+          {/* Liste des activités acceptées (étudiant) */}
+          <Route
+            path="/dashboard/etudiant/activites"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ETUDIANT"]}>
+                <ActivitesEtudiant />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/dashboard/medecin"
             element={
@@ -431,7 +442,7 @@ function App() {
             }
           />
 
-          {/* ← ROUTE ADMIN ACTIVITÉS (manquait) */}
+          {/* ROUTE ADMIN ACTIVITÉS */}
           <Route
             path="/dashboard/admin/activites"
             element={

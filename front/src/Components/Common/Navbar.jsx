@@ -11,7 +11,6 @@ const BASE_NAV_LINKS = [
   { label: "À propos", href: "#a-propos" },
 ];
 
-// Détection robuste du rôle médecin
 function isMedecin(user) {
   if (!user) return false;
 
@@ -19,7 +18,7 @@ function isMedecin(user) {
     return user.roles.some(
       (r) =>
         r === "ROLE_MEDECIN" ||
-        r === "ROLE_MEDECIN".toLowerCase() ||
+        r === "role_medecin" ||
         String(r).toUpperCase().includes("MEDECIN")
     );
   }
@@ -31,7 +30,6 @@ function isMedecin(user) {
   return false;
 }
 
-// Détection du rôle admin
 function isAdmin(user) {
   if (!user) return false;
 
@@ -39,7 +37,7 @@ function isAdmin(user) {
     return user.roles.some(
       (r) =>
         r === "ROLE_ADMIN" ||
-        r === "ROLE_ADMIN".toLowerCase() ||
+        r === "role_admin" ||
         String(r).toUpperCase().includes("ADMIN")
     );
   }
@@ -51,7 +49,6 @@ function isAdmin(user) {
   return false;
 }
 
-// Détection du rôle étudiant
 function isEtudiant(user) {
   if (!user) return false;
 
@@ -59,7 +56,7 @@ function isEtudiant(user) {
     return user.roles.some(
       (r) =>
         r === "ROLE_ETUDIANT" ||
-        r === "ROLE_ETUDIANT".toLowerCase() ||
+        r === "role_etudiant" ||
         String(r).toUpperCase().includes("ETUDIANT")
     );
   }
@@ -80,17 +77,41 @@ function getNavLinks(user) {
   let activitesLink;
 
   if (admin) {
-    coursLink = { label: "Cours", to: "/dashboard/admin/cours" };
-    activitesLink = { label: "Activités", to: "/dashboard/admin/activites" };
+    coursLink = {
+      label: "Cours",
+      to: "/dashboard/admin/cours",
+    };
+    activitesLink = {
+      label: "Activités",
+      to: "/dashboard/admin/activites",
+    };
   } else if (medecin) {
-    coursLink = { label: "Cours", to: "/dashboard/medecin/cours" };
-    activitesLink = { label: "Activités", to: "/dashboard/medecin/activites" };
+    coursLink = {
+      label: "Cours",
+      to: "/dashboard/medecin/cours",
+    };
+    activitesLink = {
+      label: "Activités",
+      to: "/dashboard/medecin/activites",
+    };
   } else if (etudiant) {
-    coursLink = { label: "Cours", to: "/dashboard/etudiant/cours" };
-    activitesLink = { label: "Activités", href: "#activites" };
+    coursLink = {
+      label: "Cours",
+      to: "/dashboard/etudiant/cours",
+    };
+    activitesLink = {
+      label: "Activités",
+      to: "/dashboard/etudiant/activites",
+    };
   } else {
-    coursLink = { label: "Cours", href: "#cours" };
-    activitesLink = { label: "Activités", href: "#activites" };
+    coursLink = {
+      label: "Cours",
+      href: "#cours",
+    };
+    activitesLink = {
+      label: "Activités",
+      href: "#activites",
+    };
   }
 
   return [coursLink, activitesLink, ...BASE_NAV_LINKS];
@@ -106,13 +127,21 @@ export default function Navbar() {
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
+
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+
+    window.addEventListener("scroll", onScroll, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
+
     return () => {
       document.body.style.overflow = "";
     };
@@ -127,7 +156,6 @@ export default function Navbar() {
   return (
     <header className={`navbar ${scrolled ? "scrolled" : ""}`}>
       <div className="navbar__container">
-        {/* Logo */}
         <Link to="/" className="navbar__logo">
           <span className="navbar__logo-icon">
             <img src="/assets/logo.jpg" alt="Tbibna" />
@@ -135,22 +163,28 @@ export default function Navbar() {
           <span className="navbar__logo-text">Tbibna</span>
         </Link>
 
-        {/* Navigation Desktop */}
         <nav className="navbar__nav-desktop">
           {navLinks.map((link) =>
             link.to ? (
-              <Link key={link.label} to={link.to} className="navbar__link">
+              <Link
+                key={link.label}
+                to={link.to}
+                className="navbar__link"
+              >
                 {link.label}
               </Link>
             ) : (
-              <a key={link.label} href={link.href} className="navbar__link">
+              <a
+                key={link.label}
+                href={link.href}
+                className="navbar__link"
+              >
                 {link.label}
               </a>
             )
           )}
         </nav>
 
-        {/* Actions droite */}
         <div className="navbar__right-actions">
           <div className="navbar__desktop-auth">
             <div className="navbar__divider" />
@@ -161,6 +195,7 @@ export default function Navbar() {
                   <UserIcon size={16} />
                   <span>{user.prenom || user.nom}</span>
                 </Link>
+
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -174,6 +209,7 @@ export default function Navbar() {
                 <Link to="/login" className="navbar__login">
                   Se connecter
                 </Link>
+
                 <Link to="/register" className="navbar__cta">
                   Créer un compte
                 </Link>
@@ -181,21 +217,27 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Hamburger */}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="navbar__toggle"
-            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-label={
+              open ? "Fermer le menu" : "Ouvrir le menu"
+            }
             aria-expanded={open}
           >
-            {open ? <X size={24} strokeWidth={2} /> : <Menu size={24} strokeWidth={2} />}
+            {open ? (
+              <X size={24} strokeWidth={2} />
+            ) : (
+              <Menu size={24} strokeWidth={2} />
+            )}
           </button>
         </div>
       </div>
 
-      {/* Menu Mobile */}
-      <div className={`navbar__mobile-menu ${open ? "open" : ""}`}>
+      <div
+        className={`navbar__mobile-menu ${open ? "open" : ""}`}
+      >
         <div className="navbar__mobile-inner">
           <nav className="navbar__mobile-nav">
             {navLinks.map((link) =>
@@ -229,15 +271,22 @@ export default function Navbar() {
                   onClick={() => setOpen(false)}
                   className="navbar__mobile-login"
                 >
-                  <UserIcon size={16} style={{ marginRight: 8 }} />
+                  <UserIcon
+                    size={16}
+                    style={{ marginRight: 8 }}
+                  />
                   {user.prenom || user.nom}
                 </Link>
+
                 <button
                   type="button"
                   onClick={handleLogout}
                   className="navbar__mobile-cta navbar__mobile-logout"
                 >
-                  <LogOut size={16} style={{ marginRight: 8 }} />
+                  <LogOut
+                    size={16}
+                    style={{ marginRight: 8 }}
+                  />
                   Se déconnecter
                 </button>
               </>
@@ -250,6 +299,7 @@ export default function Navbar() {
                 >
                   Se connecter
                 </Link>
+
                 <Link
                   to="/register"
                   onClick={() => setOpen(false)}
