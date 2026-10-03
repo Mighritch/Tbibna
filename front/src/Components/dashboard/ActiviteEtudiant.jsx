@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   BookOpen,
   Clock,
@@ -7,6 +7,7 @@ import {
   Eye,
   X,
   User,
+  ArrowUpDown,
 } from "lucide-react";
 
 export default function ActivitesEtudiant() {
@@ -14,6 +15,9 @@ export default function ActivitesEtudiant() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewingActivite, setViewingActivite] = useState(null);
+
+  // === TRI ===
+  const [sortDifficulte, setSortDifficulte] = useState(""); // "" | "facile" | "moyen" | "difficile"
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +62,26 @@ export default function ActivitesEtudiant() {
     };
   }, []);
 
+  // Liste triée / filtrée
+  const activitesFiltrees = useMemo(() => {
+    let result = [...activites];
+
+    // Filtre par difficulté
+    if (sortDifficulte) {
+      result = result.filter((a) => a.difficulte === sortDifficulte);
+    }
+
+    // Tri par difficulté (facile → moyen → difficile)
+    const ordreDifficulte = { facile: 1, moyen: 2, difficile: 3 };
+    result.sort((a, b) => {
+      const dA = ordreDifficulte[a.difficulte] || 99;
+      const dB = ordreDifficulte[b.difficulte] || 99;
+      return dA - dB;
+    });
+
+    return result;
+  }, [activites, sortDifficulte]);
+
   const openViewModal = (act) => {
     setViewingActivite(act);
   };
@@ -79,6 +103,40 @@ export default function ActivitesEtudiant() {
             l’administration.
           </p>
         </div>
+
+        {/* Filtres de tri */}
+        {!loading && !error && activites.length > 0 && (
+          <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
+              <ArrowUpDown size={16} />
+              Trier / Filtrer :
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#5C5A54]">Difficulté</label>
+              <select
+                value={sortDifficulte}
+                onChange={(e) => setSortDifficulte(e.target.value)}
+                className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+              >
+                <option value="">Toutes</option>
+                <option value="facile">Facile</option>
+                <option value="moyen">Moyen</option>
+                <option value="difficile">Difficile</option>
+              </select>
+            </div>
+
+            {sortDifficulte && (
+              <button
+                type="button"
+                onClick={() => setSortDifficulte("")}
+                className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
+              >
+                Réinitialiser
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Contenu */}
         {loading ? (
@@ -103,9 +161,22 @@ export default function ActivitesEtudiant() {
               Les activités validées par l’administration apparaîtront ici.
             </p>
           </div>
+        ) : activitesFiltrees.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
+            <BookOpen
+              size={40}
+              className="mx-auto mb-4 text-[#0F3D3E]/40"
+            />
+            <h3 className="text-lg font-semibold text-[#0F3D3E]">
+              Aucune activité ne correspond au filtre
+            </h3>
+            <p className="mt-2 text-sm text-[#5C5A54]">
+              Essayez une autre difficulté ou réinitialisez le filtre.
+            </p>
+          </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2">
-            {activites.map((act) => (
+            {activitesFiltrees.map((act) => (
               <div
                 key={act.id}
                 className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"

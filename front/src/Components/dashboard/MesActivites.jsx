@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   XCircle,
   Hourglass,
+  ArrowUpDown,
 } from "lucide-react";
 
 export default function MesActivites() {
@@ -33,8 +34,11 @@ export default function MesActivites() {
 
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
-
   const [viewingActivite, setViewingActivite] = useState(null);
+
+  // === TRI ===
+  const [sortDifficulte, setSortDifficulte] = useState(""); // "" | "facile" | "moyen" | "difficile"
+  const [sortStatut, setSortStatut] = useState(""); // "" | "en_attente" | "accepte" | "refuse"
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +66,6 @@ export default function MesActivites() {
         }
       } catch (err) {
         console.error(err);
-
         if (!cancelled) {
           setError(err.message || "Une erreur est survenue");
         }
@@ -80,12 +83,33 @@ export default function MesActivites() {
     };
   }, []);
 
+  // Liste triée / filtrée
+  const activitesFiltrees = useMemo(() => {
+    let result = [...activites];
+
+    // Filtre par difficulté
+    if (sortDifficulte) {
+      result = result.filter((a) => a.difficulte === sortDifficulte);
+    }
+
+    // Filtre par statut
+    if (sortStatut) {
+      result = result.filter((a) => a.statut === sortStatut);
+    }
+
+    // Tri par difficulté (facile → moyen → difficile)
+    const ordreDifficulte = { facile: 1, moyen: 2, difficile: 3 };
+    result.sort((a, b) => {
+      const dA = ordreDifficulte[a.difficulte] || 99;
+      const dB = ordreDifficulte[b.difficulte] || 99;
+      return dA - dB;
+    });
+
+    return result;
+  }, [activites, sortDifficulte, sortStatut]);
+
   const handleDelete = async (id) => {
-    if (
-      !window.confirm(
-        "Êtes-vous sûr de vouloir supprimer cette activité ?"
-      )
-    ) {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette activité ?")) {
       return;
     }
 
@@ -102,9 +126,7 @@ export default function MesActivites() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(
-          data.message || "Erreur lors de la suppression"
-        );
+        throw new Error(data.message || "Erreur lors de la suppression");
       }
 
       setActivites((prev) => prev.filter((a) => a.id !== id));
@@ -118,7 +140,6 @@ export default function MesActivites() {
 
   const openEditModal = (act) => {
     setEditingActivite(act);
-
     setForm({
       titre: act.titre || "",
       description: act.description || "",
@@ -126,7 +147,6 @@ export default function MesActivites() {
       difficulte: act.difficulte || "",
       duree: act.duree?.toString() || "",
     });
-
     setFormError(null);
   };
 
@@ -137,7 +157,6 @@ export default function MesActivites() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setForm((prev) => ({
       ...prev,
       [name]: value,
@@ -146,10 +165,7 @@ export default function MesActivites() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-
-    if (!editingActivite) {
-      return;
-    }
+    if (!editingActivite) return;
 
     setSaving(true);
     setFormError(null);
@@ -161,28 +177,22 @@ export default function MesActivites() {
         throw new Error("La durée doit être un nombre supérieur à 0.");
       }
 
-      const res = await fetch(
-        `/api/medecin/activites/${editingActivite.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            ...form,
-            duree,
-          }),
-        }
-      );
+      const res = await fetch(`/api/medecin/activites/${editingActivite.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          ...form,
+          duree,
+        }),
+      });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-
-        throw new Error(
-          data.message || "Erreur lors de la modification"
-        );
+        throw new Error(data.message || "Erreur lors de la modification");
       }
 
       setActivites((prev) =>
@@ -200,10 +210,7 @@ export default function MesActivites() {
       closeEditModal();
     } catch (err) {
       console.error(err);
-
-      setFormError(
-        err.message || "Erreur lors de la modification"
-      );
+      setFormError(err.message || "Erreur lors de la modification");
     } finally {
       setSaving(false);
     }
@@ -246,15 +253,16 @@ export default function MesActivites() {
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-5xl">
+        {/* Header */}
         <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
               Mes activités
             </h1>
-
             <p className="mt-1 text-[#5C5A54]">
-              Gérez les activités que vous proposez aux étudiants.
-              Elles ne seront visibles sur la plateforme qu’après validation par un administrateur.
+              Gérez les activités que vous proposez aux étudiants. Elles ne
+              seront visibles sur la plateforme qu’après validation par un
+              administrateur.
             </p>
           </div>
 
@@ -267,6 +275,60 @@ export default function MesActivites() {
           </Link>
         </div>
 
+        {/* Filtres de tri */}
+        {!loading && !error && activites.length > 0 && (
+          <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
+              <ArrowUpDown size={16} />
+              Trier / Filtrer :
+            </div>
+
+            {/* Difficulté */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#5C5A54]">Difficulté</label>
+              <select
+                value={sortDifficulte}
+                onChange={(e) => setSortDifficulte(e.target.value)}
+                className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+              >
+                <option value="">Toutes</option>
+                <option value="facile">Facile</option>
+                <option value="moyen">Moyen</option>
+                <option value="difficile">Difficile</option>
+              </select>
+            </div>
+
+            {/* Statut */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#5C5A54]">Statut</label>
+              <select
+                value={sortStatut}
+                onChange={(e) => setSortStatut(e.target.value)}
+                className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+              >
+                <option value="">Tous</option>
+                <option value="en_attente">En attente</option>
+                <option value="accepte">Acceptée</option>
+                <option value="refuse">Refusée</option>
+              </select>
+            </div>
+
+            {(sortDifficulte || sortStatut) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSortDifficulte("");
+                  setSortStatut("");
+                }}
+                className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
+              >
+                Réinitialiser
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Contenu */}
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#0F3D3E] border-t-transparent" />
@@ -278,19 +340,13 @@ export default function MesActivites() {
           </div>
         ) : activites.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
-            <BookOpen
-              size={40}
-              className="mx-auto mb-4 text-[#0F3D3E]/40"
-            />
-
+            <BookOpen size={40} className="mx-auto mb-4 text-[#0F3D3E]/40" />
             <h3 className="text-lg font-semibold text-[#0F3D3E]">
               Aucune activité pour le moment
             </h3>
-
             <p className="mt-2 text-sm text-[#5C5A54]">
               Commencez par créer votre première activité.
             </p>
-
             <Link
               to="/dashboard/medecin/activites/ajouter"
               className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-gray-50"
@@ -299,9 +355,19 @@ export default function MesActivites() {
               Créer une activité
             </Link>
           </div>
+        ) : activitesFiltrees.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
+            <BookOpen size={40} className="mx-auto mb-4 text-[#0F3D3E]/40" />
+            <h3 className="text-lg font-semibold text-[#0F3D3E]">
+              Aucune activité ne correspond aux filtres
+            </h3>
+            <p className="mt-2 text-sm text-[#5C5A54]">
+              Essayez de modifier ou de réinitialiser les filtres.
+            </p>
+          </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2">
-            {activites.map((act) => (
+            {activitesFiltrees.map((act) => (
               <div
                 key={act.id}
                 className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
@@ -322,7 +388,6 @@ export default function MesActivites() {
                     <Clock size={14} />
                     {act.duree} min
                   </span>
-
                   <span className="flex items-center gap-1.5">
                     <BarChart3 size={14} />
                     {act.difficulte}
@@ -359,7 +424,6 @@ export default function MesActivites() {
                     ) : (
                       <Trash2 size={16} />
                     )}
-
                     Supprimer
                   </button>
                 </div>
@@ -369,6 +433,7 @@ export default function MesActivites() {
         )}
       </div>
 
+      {/* Modal visualisation */}
       {viewingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
@@ -376,7 +441,6 @@ export default function MesActivites() {
               <h2 className="text-xl font-semibold text-[#0F3D3E]">
                 Instructions de l'activité
               </h2>
-
               <button
                 type="button"
                 onClick={closeViewModal}
@@ -407,7 +471,9 @@ export default function MesActivites() {
 
               {viewingActivite.statut === "en_attente" && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Cette activité est en attente de validation par un administrateur. Elle n’est pas encore visible sur la plateforme.
+                  Cette activité est en attente de validation par un
+                  administrateur. Elle n’est pas encore visible sur la
+                  plateforme.
                 </div>
               )}
 
@@ -449,6 +515,7 @@ export default function MesActivites() {
         </div>
       )}
 
+      {/* Modal édition */}
       {editingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
@@ -456,7 +523,6 @@ export default function MesActivites() {
               <h2 className="text-xl font-semibold text-[#0F3D3E]">
                 Modifier l'activité
               </h2>
-
               <button
                 type="button"
                 onClick={closeEditModal}
@@ -466,10 +532,7 @@ export default function MesActivites() {
               </button>
             </div>
 
-            <form
-              onSubmit={handleUpdate}
-              className="p-6"
-            >
+            <form onSubmit={handleUpdate} className="p-6">
               {formError && (
                 <div className="mb-5 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
                   <AlertCircle size={18} />
@@ -482,7 +545,6 @@ export default function MesActivites() {
                   <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                     Titre *
                   </label>
-
                   <input
                     type="text"
                     name="titre"
@@ -499,7 +561,6 @@ export default function MesActivites() {
                   <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                     Description *
                   </label>
-
                   <textarea
                     name="description"
                     value={form.description}
@@ -514,7 +575,6 @@ export default function MesActivites() {
                   <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                     Instructions *
                   </label>
-
                   <textarea
                     name="instructions"
                     value={form.instructions}
@@ -530,7 +590,6 @@ export default function MesActivites() {
                     <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                       Difficulté *
                     </label>
-
                     <select
                       name="difficulte"
                       value={form.difficulte}
@@ -538,21 +597,10 @@ export default function MesActivites() {
                       required
                       className="w-full rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-black outline-none transition focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
                     >
-                      <option value="">
-                        Choisir une difficulté
-                      </option>
-
-                      <option value="facile">
-                        Facile
-                      </option>
-
-                      <option value="moyen">
-                        Moyen
-                      </option>
-
-                      <option value="difficile">
-                        Difficile
-                      </option>
+                      <option value="">Choisir une difficulté</option>
+                      <option value="facile">Facile</option>
+                      <option value="moyen">Moyen</option>
+                      <option value="difficile">Difficile</option>
                     </select>
                   </div>
 
@@ -560,7 +608,6 @@ export default function MesActivites() {
                     <label className="mb-1.5 block text-sm font-medium text-[#0F3D3E]">
                       Durée (minutes) *
                     </label>
-
                     <input
                       type="number"
                       name="duree"
