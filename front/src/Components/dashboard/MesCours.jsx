@@ -497,9 +497,10 @@ export default function MesCours() {
             </p>
           </div>
 
+          {/* Bouton en blanc */}
           <Link
             to="/dashboard/medecin/cours/ajouter"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-2.5 text-sm font-semibold text-[#F4C95D] shadow-md transition hover:bg-[#082829] hover:shadow-lg"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-md transition hover:bg-[#FBF9F4] hover:shadow-lg"
           >
             <Plus size={16} />
             Ajouter un cours
@@ -672,7 +673,7 @@ export default function MesCours() {
 
             <Link
               to="/dashboard/medecin/cours/ajouter"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-2.5 text-sm font-semibold text-[#F4C95D] transition hover:bg-[#082829]"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] transition hover:bg-[#FBF9F4]"
             >
               <Plus size={16} />
               Créer mon premier cours

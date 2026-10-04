@@ -544,6 +544,9 @@ class CoursController extends AbstractController
         }
     }
 
+    /**
+     * Approuver un cours + envoyer un email au médecin via Resend
+     */
     #[Route('/{id}/approuver', name: 'cours_approve', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
     public function approve(string $id): JsonResponse
@@ -554,10 +557,56 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Cours introuvable.'], 404);
             }
 
+            // On ne fait rien si déjà approuvé
+            if ($cours->getStatut() === 'approuve') {
+                return $this->json(['message' => 'Ce cours est déjà approuvé.']);
+            }
+
             $cours->setStatut('approuve');
             $this->dm->flush();
 
-            return $this->json(['message' => 'Cours approuvé avec succès.']);
+            // ========== ENVOI EMAIL AU MÉDECIN ==========
+            $emailSent = false;
+            $emailError = null;
+
+            try {
+                $medecin = $cours->getMedecin();
+                $utilisateur = $medecin?->getUtilisateur();
+
+                // Récupération de l'email (adaptez le getter si nécessaire)
+                $emailMedecin = null;
+                if ($utilisateur) {
+                    if (method_exists($utilisateur, 'getEmail')) {
+                        $emailMedecin = $utilisateur->getEmail();
+                    } elseif (method_exists($utilisateur, 'getEmailAddress')) {
+                        $emailMedecin = $utilisateur->getEmailAddress();
+                    } elseif (method_exists($utilisateur, 'getMail')) {
+                        $emailMedecin = $utilisateur->getMail();
+                    }
+                }
+
+                if ($emailMedecin && filter_var($emailMedecin, FILTER_VALIDATE_EMAIL)) {
+                    $this->sendApprovalEmail($emailMedecin, $cours);
+                    $emailSent = true;
+                } else {
+                    $emailError = 'Email du médecin introuvable ou invalide.';
+                }
+            } catch (\Throwable $mailEx) {
+                // On ne fait pas échouer l'approbation si l'email échoue
+                $emailError = $mailEx->getMessage();
+            }
+
+            $response = [
+                'message' => 'Cours approuvé avec succès.',
+            ];
+
+            if ($emailSent) {
+                $response['email'] = 'Email de confirmation envoyé au médecin.';
+            } elseif ($emailError) {
+                $response['email_warning'] = 'Cours approuvé, mais l\'email n\'a pas pu être envoyé : ' . $emailError;
+            }
+
+            return $this->json($response);
         } catch (\Throwable $e) {
             return $this->handleException($e);
         }
@@ -652,6 +701,130 @@ class CoursController extends AbstractController
             return $this->json(['message' => 'Cours supprimé avec succès.']);
         } catch (\Throwable $e) {
             return $this->handleException($e);
+        }
+    }
+
+    /**
+     * Envoie un email de confirmation d'approbation via Resend
+     */
+    private function sendApprovalEmail(string $toEmail, Cours $cours): void
+    {
+        $apiKey = $_ENV['RESEND_API_KEY'] ?? null;
+        if (!$apiKey) {
+            throw new \RuntimeException('Clé API Resend non configurée (RESEND_API_KEY).');
+        }
+
+        $from = $_ENV['MAIL_FROM'] ?? 'Tbibna <onboarding@resend.dev>';
+
+        $titre  = htmlspecialchars($cours->getTitre() ?? 'Votre cours', ENT_QUOTES, 'UTF-8');
+        $niveau = htmlspecialchars($cours->getNiveauCours() ?? '—', ENT_QUOTES, 'UTF-8');
+        $langue = htmlspecialchars($cours->getLangueCours() ?? '—', ENT_QUOTES, 'UTF-8');
+        $duree  = $cours->getDuree() ? (int) $cours->getDuree() . ' min' : '—';
+
+        // Version HTML
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cours approuvé - Tbibna</title>
+</head>
+<body style="margin:0; padding:0; background-color:#FBF9F4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#FBF9F4; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" style="max-width:560px; background:#ffffff; border-radius:16px; border:1px solid #E4DFD3; overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#0F3D3E; padding:28px 32px;">
+              <h1 style="margin:0; color:#F4C95D; font-size:22px; font-weight:700;">Tbibna</h1>
+              <p style="margin:8px 0 0; color:#E8C77E; font-size:15px;">Votre cours a été approuvé ✓</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 16px; color:#3C3A34; font-size:15px; line-height:1.6;">
+                Bonjour,
+              </p>
+              <p style="margin:0 0 24px; color:#3C3A34; font-size:15px; line-height:1.6;">
+                Nous avons le plaisir de vous informer que votre cours a été <strong style="color:#0F3D3E;">approuvé</strong> par un administrateur et est désormais visible sur la plateforme Tbibna.
+              </p>
+
+              <!-- Card infos cours -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#FBF9F4; border:1px solid #E4DFD3; border-radius:12px; margin-bottom:28px;">
+                <tr>
+                  <td style="padding:18px 20px;">
+                    <p style="margin:0 0 10px; font-size:17px; font-weight:600; color:#0F3D3E;">
+                      {$titre}
+                    </p>
+                    <p style="margin:0; font-size:13px; color:#5C5A54; line-height:1.5;">
+                      Niveau : <strong>{$niveau}</strong><br>
+                      Langue : <strong>{$langue}</strong><br>
+                      Durée : <strong>{$duree}</strong>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 8px; color:#3C3A34; font-size:15px; line-height:1.6;">
+                Merci pour votre contribution à la communauté médicale.
+              </p>
+              <p style="margin:0; color:#5C5A54; font-size:14px;">
+                L’équipe Tbibna
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px; background:#F8F6F1; border-top:1px solid #E4DFD3;">
+              <p style="margin:0; font-size:12px; color:#9A9790; text-align:center;">
+                Cet email a été envoyé automatiquement. Merci de ne pas y répondre.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+HTML;
+
+        // Version texte (très important pour la délivrabilité, surtout Outlook)
+        $text = "Bonjour,\n\n"
+              . "Nous avons le plaisir de vous informer que votre cours a été approuvé par un administrateur et est désormais visible sur la plateforme Tbibna.\n\n"
+              . "Titre : {$titre}\n"
+              . "Niveau : {$niveau}\n"
+              . "Langue : {$langue}\n"
+              . "Durée : {$duree}\n\n"
+              . "Merci pour votre contribution à la communauté médicale.\n\n"
+              . "L’équipe Tbibna\n";
+
+        $response = $this->httpClient->request('POST', 'https://api.resend.com/emails', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+            ],
+            'json' => [
+                'from'    => $from,
+                'to'      => [$toEmail],
+                'subject' => 'Votre cours « ' . ($cours->getTitre() ?? '') . ' » a été approuvé – Tbibna',
+                'html'    => $html,
+                'text'    => $text,
+            ],
+            'timeout' => 15,
+        ]);
+
+        $statusCode = $response->getStatusCode();
+        $body = $response->toArray(false);
+
+        if ($statusCode < 200 || $statusCode >= 300) {
+            $msg = $body['message'] ?? ($body['error'] ?? 'Erreur inconnue Resend');
+            throw new \RuntimeException('Resend API error (' . $statusCode . ') : ' . $msg);
         }
     }
 
