@@ -51,7 +51,21 @@ class RegistrationController extends AbstractController
         $user->setRole($data['role']); // ROLE_ETUDIANT ou ROLE_MEDECIN
 
         try {
-            $user->setDateNaissance(new \DateTime($data['dateNaissance']));
+            $dateNaissance = new \DateTime($data['dateNaissance']);
+            $user->setDateNaissance($dateNaissance);
+
+            // ===== CONTRÔLE D'ÂGE MINIMUM 18 ANS =====
+            $today = new \DateTime();
+            $age = $today->diff($dateNaissance)->y;
+
+            if ($age < 18) {
+                return $this->json(
+                    ['error' => 'Vous devez avoir au moins 18 ans pour vous inscrire'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+            // =========================================
+
         } catch (\Exception $e) {
             return $this->json(['error' => 'Format de date invalide (utilisez YYYY-MM-DD)'], Response::HTTP_BAD_REQUEST);
         }

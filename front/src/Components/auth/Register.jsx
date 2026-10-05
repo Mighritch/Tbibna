@@ -41,6 +41,19 @@ export default function Register() {
     return regex.test(email);
   };
 
+  // Calcul précis de l'âge
+  const calculateAge = (birthDateString) => {
+    const birthDate = new Date(birthDateString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   const validateField = (name, value) => {
     const errors = { ...validationErrors };
 
@@ -89,14 +102,14 @@ export default function Register() {
 
       case "dateNaissance":
         if (value) {
-          const birthDate = new Date(value);
-          const today = new Date();
-          const age = today.getFullYear() - birthDate.getFullYear();
-          if (age < 13) {
-            errors.dateNaissance = "Vous devez avoir au moins 13 ans";
+          const age = calculateAge(value);
+          if (age < 18) {
+            errors.dateNaissance = "Vous devez avoir au moins 18 ans";
           } else {
             errors.dateNaissance = "";
           }
+        } else {
+          errors.dateNaissance = "";
         }
         break;
 
@@ -123,7 +136,14 @@ export default function Register() {
 
     if (!form.nom || form.nom.length < 2) errors.nom = "Nom requis (min 2 caractères)";
     if (!form.prenom || form.prenom.length < 2) errors.prenom = "Prénom requis (min 2 caractères)";
-    if (!form.dateNaissance) errors.dateNaissance = "Date de naissance requise";
+    if (!form.dateNaissance) {
+      errors.dateNaissance = "Date de naissance requise";
+    } else {
+      const age = calculateAge(form.dateNaissance);
+      if (age < 18) {
+        errors.dateNaissance = "Vous devez avoir au moins 18 ans";
+      }
+    }
     if (!form.email || !isValidEmail(form.email)) errors.email = "Email valide requis";
     if (!form.password || form.password.length < 6)
       errors.password = "Mot de passe requis (min 6 caractères)";
