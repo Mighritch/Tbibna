@@ -8,18 +8,80 @@ import {
   XCircle,
   Hourglass,
   Eye,
+  ChevronLeft,
+  ChevronRight,
   X,
   Check,
   Ban,
 } from "lucide-react";
 
+const ITEMS_PER_PAGE = 3;
+
+function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
+  if (totalItems <= ITEMS_PER_PAGE) return null;
+
+  const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  return (
+    <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm sm:flex-row">
+      <p className="text-sm text-[#5C5A54]">
+        Affichage de{" "}
+        <span className="font-medium text-[#0F3D3E]">{start}</span>
+        {" "}à{" "}
+        <span className="font-medium text-[#0F3D3E]">{end}</span> sur{" "}
+        <span className="font-medium text-[#0F3D3E]">{totalItems}</span>{" "}
+        activités
+      </p>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronLeft size={16} />
+          Précédent
+        </button>
+
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPageChange(p)}
+            className={`h-9 min-w-9 rounded-xl px-3 text-sm font-medium transition ${
+              p === currentPage
+                ? "bg-[#0F3D3E] text-white"
+                : "border border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Suivant
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminActivites() {
   const [activites, setActivites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
-  const [actionLoading, setActionLoading] = useState(null); // id en cours d'action
+  const [actionLoading, setActionLoading] = useState(null);
   const [viewingActivite, setViewingActivite] = useState(null);
-  const [filter, setFilter] = useState("all"); // all | en_attente | accepte | refuse
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -31,7 +93,9 @@ export default function AdminActivites() {
 
         const res = await fetch("/api/admin/activites", {
           credentials: "include",
-          headers: { Accept: "application/json" },
+          headers: {
+            Accept: "application/json",
+          },
         });
 
         if (!res.ok) {
@@ -45,6 +109,7 @@ export default function AdminActivites() {
         }
       } catch (err) {
         console.error(err);
+
         if (!cancelled) {
           setError(err.message || "Une erreur est survenue");
         }
@@ -73,19 +138,32 @@ export default function AdminActivites() {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ statut: nouveauStatut }),
+        body: JSON.stringify({
+          statut: nouveauStatut,
+        }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Erreur lors du changement de statut");
+
+        throw new Error(
+          data.message || "Erreur lors du changement de statut"
+        );
       }
 
       setActivites((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, statut: nouveauStatut } : a))
+        prev.map((a) =>
+          a.id === id
+            ? {
+                ...a,
+                statut: nouveauStatut,
+              }
+            : a
+        )
       );
     } catch (err) {
       console.error(err);
+
       setError(err.message || "Erreur lors de l'action");
     } finally {
       setActionLoading(null);
@@ -101,6 +179,7 @@ export default function AdminActivites() {
             Acceptée
           </span>
         );
+
       case "refuse":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
@@ -108,6 +187,7 @@ export default function AdminActivites() {
             Refusée
           </span>
         );
+
       default:
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
@@ -119,46 +199,91 @@ export default function AdminActivites() {
   };
 
   const filtered = activites.filter((a) => {
-    if (filter === "all") return true;
+    if (filter === "all") {
+      return true;
+    }
+
     return a.statut === filter;
   });
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  );
+
+  const currentPage = Math.min(page, totalPages);
+
+  const paginated = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter);
+    setPage(1);
+  };
+
+  const handlePageChange = (p) => {
+    setPage(p);
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   const counts = {
     all: activites.length,
-    en_attente: activites.filter((a) => a.statut === "en_attente").length,
-    accepte: activites.filter((a) => a.statut === "accepte").length,
-    refuse: activites.filter((a) => a.statut === "refuse").length,
+    en_attente: activites.filter(
+      (a) => a.statut === "en_attente"
+    ).length,
+    accepte: activites.filter(
+      (a) => a.statut === "accepte"
+    ).length,
+    refuse: activites.filter(
+      (a) => a.statut === "refuse"
+    ).length,
   };
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
             Gestion des activités
           </h1>
+
           <p className="mt-1 text-[#5C5A54]">
             Validez ou refusez les activités proposées par les médecins.
           </p>
         </div>
 
-        {/* Filtres */}
         <div className="mb-6 flex flex-wrap gap-2">
           {[
-            { key: "all", label: "Toutes" },
-            { key: "en_attente", label: "En attente" },
-            { key: "accepte", label: "Acceptées" },
-            { key: "refuse", label: "Refusées" },
+            {
+              key: "all",
+              label: "Toutes",
+            },
+            {
+              key: "en_attente",
+              label: "En attente",
+            },
+            {
+              key: "accepte",
+              label: "Acceptées",
+            },
+            {
+              key: "refuse",
+              label: "Refusées",
+            },
           ].map((f) => (
             <button
               key={f.key}
               type="button"
-              onClick={() => setFilter(f.key)}
+              onClick={() => handleFilterChange(f.key)}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                 filter === f.key
                   ? "bg-[#0F3D3E] text-white"
-                  : "bg-white border border-[#E4DFD3] text-[#0F3D3E] hover:bg-[#FAF8F5]"
+                  : "border border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
               }`}
             >
               {f.label} ({counts[f.key]})
@@ -177,10 +302,15 @@ export default function AdminActivites() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
-            <BookOpen size={40} className="mx-auto mb-4 text-[#0F3D3E]/40" />
+            <BookOpen
+              size={40}
+              className="mx-auto mb-4 text-[#0F3D3E]/40"
+            />
+
             <h3 className="text-lg font-semibold text-[#0F3D3E]">
               Aucune activité
             </h3>
+
             <p className="mt-2 text-sm text-[#5C5A54]">
               {filter === "all"
                 ? "Aucune activité n’a encore été créée."
@@ -188,89 +318,108 @@ export default function AdminActivites() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((act) => (
-              <div
-                key={act.id}
-                className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
-                    {act.titre}
-                  </h2>
-                  {getStatutBadge(act.statut)}
-                </div>
+          <>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {paginated.map((act) => (
+                <div
+                  key={act.id}
+                  className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
+                      {act.titre}
+                    </h2>
 
-                <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
-                  {act.description}
-                </p>
+                    {getStatutBadge(act.statut)}
+                  </div>
 
-                <div className="mt-4 flex items-center gap-4 text-xs text-[#737873]">
-                  <span className="flex items-center gap-1.5">
-                    <Clock size={14} />
-                    {act.duree} min
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <BarChart3 size={14} />
-                    {act.difficulte}
-                  </span>
-                </div>
-
-                {act.medecinNom && (
-                  <p className="mt-2 text-xs text-[#737873]">
-                    Par : <span className="font-medium text-[#0F3D3E]">{act.medecinNom}</span>
+                  <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
+                    {act.description}
                   </p>
-                )}
 
-                <div className="mt-5 flex flex-wrap gap-2 border-t border-[#E4DFD3] pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setViewingActivite(act)}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
-                  >
-                    <Eye size={15} />
-                    Voir
-                  </button>
+                  <div className="mt-4 flex items-center gap-4 text-xs text-[#737873]">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={14} />
+                      {act.duree} min
+                    </span>
 
-                  {act.statut !== "accepte" && (
-                    <button
-                      type="button"
-                      disabled={actionLoading === act.id}
-                      onClick={() => changeStatut(act.id, "accepte")}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                    >
-                      {actionLoading === act.id ? (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      ) : (
-                        <Check size={15} />
-                      )}
-                      Accepter
-                    </button>
+                    <span className="flex items-center gap-1.5">
+                      <BarChart3 size={14} />
+                      {act.difficulte}
+                    </span>
+                  </div>
+
+                  {act.medecinNom && (
+                    <p className="mt-2 text-xs text-[#737873]">
+                      Par :{" "}
+                      <span className="font-medium text-[#0F3D3E]">
+                        {act.medecinNom}
+                      </span>
+                    </p>
                   )}
 
-                  {act.statut !== "refuse" && (
+                  <div className="mt-5 flex flex-wrap gap-2 border-t border-[#E4DFD3] pt-4">
                     <button
                       type="button"
-                      disabled={actionLoading === act.id}
-                      onClick={() => changeStatut(act.id, "refuse")}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+                      onClick={() => setViewingActivite(act)}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
                     >
-                      {actionLoading === act.id ? (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      ) : (
-                        <Ban size={15} />
-                      )}
-                      Refuser
+                      <Eye size={15} />
+                      Voir
                     </button>
-                  )}
+
+                    {act.statut !== "accepte" && (
+                      <button
+                        type="button"
+                        disabled={actionLoading === act.id}
+                        onClick={() =>
+                          changeStatut(act.id, "accepte")
+                        }
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {actionLoading === act.id ? (
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        ) : (
+                          <Check size={15} />
+                        )}
+
+                        Accepter
+                      </button>
+                    )}
+
+                    {act.statut !== "refuse" && (
+                      <button
+                        type="button"
+                        disabled={actionLoading === act.id}
+                        onClick={() =>
+                          changeStatut(act.id, "refuse")
+                        }
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+                      >
+                        {actionLoading === act.id ? (
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        ) : (
+                          <Ban size={15} />
+                        )}
+
+                        Refuser
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              onPageChange={handlePageChange}
+            />
+          </>
         )}
       </div>
 
-      {/* Modal de visualisation */}
       {viewingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
@@ -278,6 +427,7 @@ export default function AdminActivites() {
               <h2 className="text-xl font-semibold text-[#0F3D3E]">
                 Détails de l'activité
               </h2>
+
               <button
                 type="button"
                 onClick={() => setViewingActivite(null)}
@@ -292,6 +442,7 @@ export default function AdminActivites() {
                 <h3 className="text-lg font-semibold text-[#0F3D3E]">
                   {viewingActivite.titre}
                 </h3>
+
                 {getStatutBadge(viewingActivite.statut)}
               </div>
 
@@ -300,6 +451,7 @@ export default function AdminActivites() {
                   <Clock size={16} />
                   {viewingActivite.duree} min
                 </span>
+
                 <span className="flex items-center gap-1.5">
                   <BarChart3 size={16} />
                   {viewingActivite.difficulte}
@@ -307,14 +459,20 @@ export default function AdminActivites() {
               </div>
 
               <div>
-                <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">Description</h4>
+                <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">
+                  Description
+                </h4>
+
                 <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
                   {viewingActivite.description || "—"}
                 </p>
               </div>
 
               <div>
-                <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">Instructions</h4>
+                <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">
+                  Instructions
+                </h4>
+
                 <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
                   {viewingActivite.instructions || "—"}
                 </p>
@@ -325,27 +483,37 @@ export default function AdminActivites() {
               {viewingActivite.statut !== "accepte" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    changeStatut(viewingActivite.id, "accepte");
+                  disabled={actionLoading === viewingActivite.id}
+                  onClick={async () => {
+                    await changeStatut(
+                      viewingActivite.id,
+                      "accepte"
+                    );
                     setViewingActivite(null);
                   }}
-                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700"
+                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
                 >
                   Accepter
                 </button>
               )}
+
               {viewingActivite.statut !== "refuse" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    changeStatut(viewingActivite.id, "refuse");
+                  disabled={actionLoading === viewingActivite.id}
+                  onClick={async () => {
+                    await changeStatut(
+                      viewingActivite.id,
+                      "refuse"
+                    );
                     setViewingActivite(null);
                   }}
-                  className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700"
+                  className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
                 >
                   Refuser
                 </button>
               )}
+
               <button
                 type="button"
                 onClick={() => setViewingActivite(null)}

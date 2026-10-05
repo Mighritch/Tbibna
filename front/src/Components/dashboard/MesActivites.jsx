@@ -11,6 +11,8 @@ import {
   X,
   Save,
   Eye,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   XCircle,
   Hourglass,
@@ -18,9 +20,66 @@ import {
   Users,
 } from "lucide-react";
 
+const ITEMS_PER_PAGE = 3;
+
+function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
+  if (totalItems <= ITEMS_PER_PAGE) return null;
+
+  const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  return (
+    <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm sm:flex-row">
+      <p className="text-sm text-[#5C5A54]">
+        Affichage de <span className="font-medium text-[#0F3D3E]">{start}</span>
+        {" "}à <span className="font-medium text-[#0F3D3E]">{end}</span> sur{" "}
+        <span className="font-medium text-[#0F3D3E]">{totalItems}</span> activités
+      </p>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronLeft size={16} />
+          Précédent
+        </button>
+
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPageChange(p)}
+            className={`h-9 min-w-9 rounded-xl px-3 text-sm font-medium transition ${
+              p === currentPage
+                ? "bg-[#0F3D3E] text-white"
+                : "border border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Suivant
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function MesActivites() {
   const [activites, setActivites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -121,6 +180,19 @@ export default function MesActivites() {
 
     return result;
   }, [activites, sortDifficulte, sortStatut, vue]);
+
+  // === PAGINATION ===
+  const totalPages = Math.max(1, Math.ceil(activitesFiltrees.length / ITEMS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = activitesFiltrees.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (p) => {
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette activité ?")) {
@@ -297,6 +369,7 @@ export default function MesActivites() {
             type="button"
             onClick={() => {
               setVue("mes");
+              setPage(1);
               setSortDifficulte("");
               setSortStatut("");
             }}
@@ -313,6 +386,7 @@ export default function MesActivites() {
             type="button"
             onClick={() => {
               setVue("tous");
+              setPage(1);
               setSortDifficulte("");
               setSortStatut("");
             }}
@@ -426,8 +500,9 @@ export default function MesActivites() {
             </p>
           </div>
         ) : (
+          <>
           <div className="grid gap-5 sm:grid-cols-2">
-            {activitesFiltrees.map((act) => (
+            {paginated.map((act) => (
               <div
                 key={act.id}
                 className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
@@ -502,6 +577,14 @@ export default function MesActivites() {
               </div>
             ))}
           </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={activitesFiltrees.length}
+            onPageChange={handlePageChange}
+          />
+          </>
         )}
       </div>
 

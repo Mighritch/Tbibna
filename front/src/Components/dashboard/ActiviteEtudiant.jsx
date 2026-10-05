@@ -5,6 +5,8 @@ import {
   BarChart3,
   AlertCircle,
   Eye,
+  ChevronLeft,
+  ChevronRight,
   X,
   User,
   ArrowUpDown,
@@ -14,9 +16,70 @@ import {
   Heart,
 } from "lucide-react";
 
+const ITEMS_PER_PAGE = 3;
+
+function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
+  if (totalItems <= ITEMS_PER_PAGE) return null;
+
+  const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  return (
+    <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm sm:flex-row">
+      <p className="text-sm text-[#5C5A54]">
+        Affichage de{" "}
+        <span className="font-medium text-[#0F3D3E]">{start}</span>
+        {" "}à{" "}
+        <span className="font-medium text-[#0F3D3E]">{end}</span>
+        {" "}sur{" "}
+        <span className="font-medium text-[#0F3D3E]">{totalItems}</span>{" "}
+        activités
+      </p>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronLeft size={16} />
+          Précédent
+        </button>
+
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPageChange(p)}
+            className={`h-9 min-w-9 rounded-xl px-3 text-sm font-medium transition ${
+              p === currentPage
+                ? "bg-[#0F3D3E] text-white"
+                : "border border-[#E4DFDF3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Suivant
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ActivitesEtudiant() {
   const [activites, setActivites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
   const [viewingActivite, setViewingActivite] = useState(null);
 
@@ -57,6 +120,7 @@ export default function ActivitesEtudiant() {
         }
       } catch (err) {
         console.error(err);
+
         if (!cancelled) {
           setError(err.message || "Une erreur est survenue");
         }
@@ -78,25 +142,69 @@ export default function ActivitesEtudiant() {
     let result = [...activites];
 
     if (sortDifficulte) {
-      result = result.filter((a) => a.difficulte === sortDifficulte);
+      result = result.filter(
+        (a) => a.difficulte === sortDifficulte
+      );
     }
 
     if (filterFavoris) {
       result = result.filter((a) => a.isFavori);
     }
 
-    const ordreDifficulte = { facile: 1, moyen: 2, difficile: 3 };
+    const ordreDifficulte = {
+      facile: 1,
+      moyen: 2,
+      difficile: 3,
+    };
+
     result.sort((a, b) => {
       if (a.isFavori && !b.isFavori) return -1;
       if (!a.isFavori && b.isFavori) return 1;
 
       const dA = ordreDifficulte[a.difficulte] || 99;
       const dB = ordreDifficulte[b.difficulte] || 99;
+
       return dA - dB;
     });
 
     return result;
   }, [activites, sortDifficulte, filterFavoris]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(activitesFiltrees.length / ITEMS_PER_PAGE)
+  );
+
+  const currentPage = Math.min(page, totalPages);
+
+  const paginated = activitesFiltrees.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (p) => {
+    setPage(p);
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  const handleDifficulteChange = (e) => {
+    setSortDifficulte(e.target.value);
+    setPage(1);
+  };
+
+  const handleToggleFilterFavoris = () => {
+    setFilterFavoris((prev) => !prev);
+    setPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setSortDifficulte("");
+    setFilterFavoris(false);
+    setPage(1);
+  };
 
   const openViewModal = (act) => {
     setViewingActivite(act);
@@ -116,35 +224,51 @@ export default function ActivitesEtudiant() {
 
   const handleToggleFavori = async (act, e) => {
     e?.stopPropagation();
+
     if (togglingFavori) return;
 
     setTogglingFavori(act.id);
 
     try {
       const method = act.isFavori ? "DELETE" : "POST";
-      const res = await fetch(`/api/etudiant/activites/${act.id}/favori`, {
-        method,
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
-      });
+
+      const res = await fetch(
+        `/api/etudiant/activites/${act.id}/favori`,
+        {
+          method,
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Erreur lors de la mise à jour des favoris");
+        throw new Error(
+          data.message ||
+            "Erreur lors de la mise à jour des favoris"
+        );
       }
 
       setActivites((prev) =>
         prev.map((a) =>
-          a.id === act.id ? { ...a, isFavori: data.isFavori } : a
+          a.id === act.id
+            ? {
+                ...a,
+                isFavori: data.isFavori,
+              }
+            : a
         )
       );
 
       setViewingActivite((prev) =>
         prev && prev.id === act.id
-          ? { ...prev, isFavori: data.isFavori }
+          ? {
+              ...prev,
+              isFavori: data.isFavori,
+            }
           : prev
       );
     } catch (err) {
@@ -157,6 +281,7 @@ export default function ActivitesEtudiant() {
 
   const handleSubmitTravail = async (e) => {
     e.preventDefault();
+
     if (!viewingActivite) return;
 
     setSubmitting(true);
@@ -175,7 +300,8 @@ export default function ActivitesEtudiant() {
           },
           body: JSON.stringify({
             contenu: contenuTravail,
-            commentaireEtudiant: commentaireEtudiant || null,
+            commentaireEtudiant:
+              commentaireEtudiant || null,
           }),
         }
       );
@@ -183,10 +309,26 @@ export default function ActivitesEtudiant() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Erreur lors de la soumission");
+        throw new Error(
+          data.message || "Erreur lors de la soumission"
+        );
       }
 
-      setSubmitSuccess(data.message || "Travail soumis avec succès ! L'activité est maintenant réalisée.");
+      setSubmitSuccess(
+        data.message ||
+          "Travail soumis avec succès ! L'activité est maintenant réalisée."
+      );
+
+      const nouvelleSoumission = {
+        id: data.id,
+        contenu: contenuTravail,
+        commentaireEtudiant:
+          commentaireEtudiant || null,
+        statut: data.statut || "realise",
+        note: null,
+        commentaireMedecin: null,
+        createdAt: new Date().toISOString(),
+      };
 
       setActivites((prev) =>
         prev.map((a) =>
@@ -194,15 +336,7 @@ export default function ActivitesEtudiant() {
             ? {
                 ...a,
                 aDejaSoumis: true,
-                soumission: {
-                  id: data.id,
-                  contenu: contenuTravail,
-                  commentaireEtudiant: commentaireEtudiant || null,
-                  statut: data.statut || "realise",
-                  note: null,
-                  commentaireMedecin: null,
-                  createdAt: new Date().toISOString(),
-                },
+                soumission: nouvelleSoumission,
               }
             : a
         )
@@ -213,21 +347,16 @@ export default function ActivitesEtudiant() {
           ? {
               ...prev,
               aDejaSoumis: true,
-              soumission: {
-                id: data.id,
-                contenu: contenuTravail,
-                commentaireEtudiant: commentaireEtudiant || null,
-                statut: data.statut || "realise",
-                note: null,
-                commentaireMedecin: null,
-                createdAt: new Date().toISOString(),
-              },
+              soumission: nouvelleSoumission,
             }
           : null
       );
     } catch (err) {
       console.error(err);
-      setSubmitError(err.message || "Une erreur est survenue");
+
+      setSubmitError(
+        err.message || "Une erreur est survenue"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -240,63 +369,72 @@ export default function ActivitesEtudiant() {
           <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
             Activités disponibles
           </h1>
+
           <p className="mt-1 text-[#5C5A54]">
-            Découvrez les activités proposées par les médecins et validées par
-            l’administration.
+            Découvrez les activités proposées par les médecins et
+            validées par l’administration.
           </p>
         </div>
 
-        {!loading && !error && activites.length > 0 && (
-          <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
-              <ArrowUpDown size={16} />
-              Trier / Filtrer :
-            </div>
+        {!loading &&
+          !error &&
+          activites.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
+                <ArrowUpDown size={16} />
+                Trier / Filtrer :
+              </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[#5C5A54]">Difficulté</label>
-              <select
-                value={sortDifficulte}
-                onChange={(e) => setSortDifficulte(e.target.value)}
-                className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
-              >
-                <option value="">Toutes</option>
-                <option value="facile">Facile</option>
-                <option value="moyen">Moyen</option>
-                <option value="difficile">Difficile</option>
-              </select>
-            </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-[#5C5A54]">
+                  Difficulté
+                </label>
 
-            <button
-              type="button"
-              onClick={() => setFilterFavoris((v) => !v)}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                filterFavoris
-                  ? "border-rose-300 bg-rose-50 text-rose-700"
-                  : "border-[#E4DFD3] bg-[#FAF8F5] text-[#0F3D3E] hover:bg-white"
-              }`}
-            >
-              <Heart
-                size={14}
-                className={filterFavoris ? "fill-rose-500 text-rose-500" : ""}
-              />
-              Favoris uniquement
-            </button>
+                <select
+                  value={sortDifficulte}
+                  onChange={handleDifficulteChange}
+                  className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+                >
+                  <option value="">Toutes</option>
+                  <option value="facile">Facile</option>
+                  <option value="moyen">Moyen</option>
+                  <option value="difficile">
+                    Difficile
+                  </option>
+                </select>
+              </div>
 
-            {(sortDifficulte || filterFavoris) && (
               <button
                 type="button"
-                onClick={() => {
-                  setSortDifficulte("");
-                  setFilterFavoris(false);
-                }}
-                className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
+                onClick={handleToggleFilterFavoris}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                  filterFavoris
+                    ? "border-rose-300 bg-rose-50 text-rose-700"
+                    : "border-[#E4DFD3] bg-[#FAF8F5] text-[#0F3D3E] hover:bg-white"
+                }`}
               >
-                Réinitialiser
+                <Heart
+                  size={14}
+                  className={
+                    filterFavoris
+                      ? "fill-rose-500 text-rose-500"
+                      : ""
+                  }
+                />
+                Favoris uniquement
               </button>
-            )}
-          </div>
-        )}
+
+              {(sortDifficulte || filterFavoris) && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+          )}
 
         {loading ? (
           <div className="flex justify-center py-20">
@@ -313,11 +451,14 @@ export default function ActivitesEtudiant() {
               size={40}
               className="mx-auto mb-4 text-[#0F3D3E]/40"
             />
+
             <h3 className="text-lg font-semibold text-[#0F3D3E]">
               Aucune activité disponible
             </h3>
+
             <p className="mt-2 text-sm text-[#5C5A54]">
-              Les activités validées par l’administration apparaîtront ici.
+              Les activités validées par l’administration
+              apparaîtront ici.
             </p>
           </div>
         ) : activitesFiltrees.length === 0 ? (
@@ -326,85 +467,117 @@ export default function ActivitesEtudiant() {
               size={40}
               className="mx-auto mb-4 text-[#0F3D3E]/40"
             />
+
             <h3 className="text-lg font-semibold text-[#0F3D3E]">
               Aucune activité ne correspond au filtre
             </h3>
+
             <p className="mt-2 text-sm text-[#5C5A54]">
-              Essayez une autre difficulté ou réinitialisez le filtre.
+              Essayez une autre difficulté ou réinitialisez
+              le filtre.
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2">
-            {activitesFiltrees.map((act) => (
-              <div
-                key={act.id}
-                className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
-                    {act.titre}
-                  </h2>
+          <>
+            <div className="grid gap-5 sm:grid-cols-2">
+              {paginated.map((act) => (
+                <div
+                  key={act.id}
+                  className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
+                      {act.titre}
+                    </h2>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {act.aDejaSoumis && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                        <CheckCircle2 size={12} />
-                        Réalisé
-                      </span>
-                    )}
+                    <div className="flex shrink-0 items-center gap-2">
+                      {act.aDejaSoumis && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                          <CheckCircle2 size={12} />
+                          Réalisé
+                        </span>
+                      )}
 
+                      <button
+                        type="button"
+                        onClick={(e) =>
+                          handleToggleFavori(act, e)
+                        }
+                        disabled={
+                          togglingFavori === act.id
+                        }
+                        className={`rounded-full p-1.5 transition ${
+                          act.isFavori
+                            ? "text-rose-500 hover:bg-rose-50"
+                            : "text-[#A8A59D] hover:bg-gray-100 hover:text-rose-400"
+                        }`}
+                        title={
+                          act.isFavori
+                            ? "Retirer des favoris"
+                            : "Ajouter aux favoris"
+                        }
+                      >
+                        <Heart
+                          size={18}
+                          className={
+                            act.isFavori
+                              ? "fill-current"
+                              : ""
+                          }
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
+                    {act.description}
+                  </p>
+
+                  <div className="mt-4 flex items-center gap-2 text-xs text-[#737873]">
+                    <User size={14} />
+                    <span>
+                      {act.medecinNom || "Médecin"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-4 text-xs text-[#737873]">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={14} />
+                      {act.duree} min
+                    </span>
+
+                    <span className="flex items-center gap-1.5">
+                      <BarChart3 size={14} />
+                      {act.difficulte}
+                    </span>
+                  </div>
+
+                  <div className="mt-6 border-t border-[#E4DFD3] pt-4">
                     <button
                       type="button"
-                      onClick={(e) => handleToggleFavori(act, e)}
-                      disabled={togglingFavori === act.id}
-                      className={`rounded-full p-1.5 transition ${
-                        act.isFavori
-                          ? "text-rose-500 hover:bg-rose-50"
-                          : "text-[#A8A59D] hover:bg-gray-100 hover:text-rose-400"
-                      }`}
-                      title={act.isFavori ? "Retirer des favoris" : "Ajouter aux favoris"}
+                      onClick={() =>
+                        openViewModal(act)
+                      }
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
                     >
-                      <Heart
-                        size={18}
-                        className={act.isFavori ? "fill-current" : ""}
-                      />
+                      <Eye size={16} />
+
+                      {act.aDejaSoumis
+                        ? "Voir ma réalisation"
+                        : "Voir & Soumettre"}
                     </button>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
-                  {act.description}
-                </p>
-
-                <div className="mt-4 flex items-center gap-2 text-xs text-[#737873]">
-                  <User size={14} />
-                  <span>{act.medecinNom || "Médecin"}</span>
-                </div>
-
-                <div className="mt-4 flex items-center gap-4 text-xs text-[#737873]">
-                  <span className="flex items-center gap-1.5">
-                    <Clock size={14} />
-                    {act.duree} min
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <BarChart3 size={14} />
-                    {act.difficulte}
-                  </span>
-                </div>
-
-                <div className="mt-6 border-t border-[#E4DFD3] pt-4">
-                  <button
-                    type="button"
-                    onClick={() => openViewModal(act)}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
-                  >
-                    <Eye size={16} />
-                    {act.aDejaSoumis ? "Voir ma réalisation" : "Voir & Soumettre"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={activitesFiltrees.length}
+              onPageChange={handlePageChange}
+            />
+          </>
         )}
       </div>
 
@@ -415,11 +588,20 @@ export default function ActivitesEtudiant() {
               <h2 className="text-xl font-semibold text-[#0F3D3E]">
                 Détails de l’activité
               </h2>
+
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={(e) => handleToggleFavori(viewingActivite, e)}
-                  disabled={togglingFavori === viewingActivite.id}
+                  onClick={(e) =>
+                    handleToggleFavori(
+                      viewingActivite,
+                      e
+                    )
+                  }
+                  disabled={
+                    togglingFavori ===
+                    viewingActivite.id
+                  }
                   className={`rounded-lg p-1.5 transition ${
                     viewingActivite.isFavori
                       ? "text-rose-500 hover:bg-rose-50"
@@ -433,9 +615,14 @@ export default function ActivitesEtudiant() {
                 >
                   <Heart
                     size={20}
-                    className={viewingActivite.isFavori ? "fill-current" : ""}
+                    className={
+                      viewingActivite.isFavori
+                        ? "fill-current"
+                        : ""
+                    }
                   />
                 </button>
+
                 <button
                   type="button"
                   onClick={closeViewModal}
@@ -451,9 +638,13 @@ export default function ActivitesEtudiant() {
                 <h3 className="text-lg font-semibold text-[#0F3D3E]">
                   {viewingActivite.titre}
                 </h3>
+
                 <div className="mt-2 flex items-center gap-2 text-sm text-[#737873]">
                   <User size={15} />
-                  <span>{viewingActivite.medecinNom || "Médecin"}</span>
+                  <span>
+                    {viewingActivite.medecinNom ||
+                      "Médecin"}
+                  </span>
                 </div>
               </div>
 
@@ -462,6 +653,7 @@ export default function ActivitesEtudiant() {
                   <Clock size={16} />
                   {viewingActivite.duree} min
                 </span>
+
                 <span className="flex items-center gap-1.5">
                   <BarChart3 size={16} />
                   {viewingActivite.difficulte}
@@ -472,8 +664,10 @@ export default function ActivitesEtudiant() {
                 <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">
                   Description
                 </h4>
+
                 <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                  {viewingActivite.description || "—"}
+                  {viewingActivite.description ||
+                    "—"}
                 </p>
               </div>
 
@@ -481,8 +675,10 @@ export default function ActivitesEtudiant() {
                 <h4 className="mb-2 text-sm font-medium text-[#0F3D3E]">
                   Instructions
                 </h4>
+
                 <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                  {viewingActivite.instructions || "—"}
+                  {viewingActivite.instructions ||
+                    "—"}
                 </p>
               </div>
 
@@ -492,21 +688,27 @@ export default function ActivitesEtudiant() {
                   Mon travail
                 </h4>
 
-                {viewingActivite.aDejaSoumis && viewingActivite.soumission ? (
+                {viewingActivite.aDejaSoumis &&
+                viewingActivite.soumission ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                       <CheckCircle2 size={18} />
+
                       <span>
                         Activité réalisée le{" "}
                         {new Date(
-                          viewingActivite.soumission.createdAt
-                        ).toLocaleDateString("fr-FR", {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                          viewingActivite
+                            .soumission.createdAt
+                        ).toLocaleDateString(
+                          "fr-FR",
+                          {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
                       </span>
                     </div>
 
@@ -514,44 +716,77 @@ export default function ActivitesEtudiant() {
                       <p className="mb-1 text-xs font-medium text-[#5C5A54]">
                         Contenu soumis
                       </p>
+
                       <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                        {viewingActivite.soumission.contenu}
+                        {
+                          viewingActivite.soumission
+                            .contenu
+                        }
                       </p>
                     </div>
 
-                    {viewingActivite.soumission.commentaireEtudiant && (
+                    {viewingActivite.soumission
+                      .commentaireEtudiant && (
                       <div>
                         <p className="mb-1 text-xs font-medium text-[#5C5A54]">
                           Votre commentaire
                         </p>
+
                         <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                          {viewingActivite.soumission.commentaireEtudiant}
+                          {
+                            viewingActivite
+                              .soumission
+                              .commentaireEtudiant
+                          }
                         </p>
                       </div>
                     )}
 
-                    {viewingActivite.soumission.note !== null && (
+                    {viewingActivite.soumission
+                      .note !== null && (
                       <div className="rounded-xl border border-[#E4DFD3] bg-white px-4 py-3">
                         <p className="text-sm font-medium text-[#0F3D3E]">
-                          Note : {viewingActivite.soumission.note}/20
+                          Note :{" "}
+                          {
+                            viewingActivite
+                              .soumission.note
+                          }
+                          /20
                         </p>
-                        {viewingActivite.soumission.commentaireMedecin && (
+
+                        {viewingActivite.soumission
+                          .commentaireMedecin && (
                           <p className="mt-1 text-sm text-[#5C5A54]">
-                            {viewingActivite.soumission.commentaireMedecin}
+                            {
+                              viewingActivite
+                                .soumission
+                                .commentaireMedecin
+                            }
                           </p>
                         )}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmitTravail} className="space-y-4">
+                  <form
+                    onSubmit={handleSubmitTravail}
+                    className="space-y-4"
+                  >
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-[#5C5A54]">
-                        Votre travail <span className="text-rose-500">*</span>
+                        Votre travail{" "}
+                        <span className="text-rose-500">
+                          *
+                        </span>
                       </label>
+
                       <textarea
                         value={contenuTravail}
-                        onChange={(e) => setContenuTravail(e.target.value)}
+                        onChange={(e) =>
+                          setContenuTravail(
+                            e.target.value
+                          )
+                        }
                         required
                         rows={6}
                         placeholder="Rédigez ici votre réponse / rapport / analyse selon les instructions..."
@@ -563,9 +798,16 @@ export default function ActivitesEtudiant() {
                       <label className="mb-1.5 block text-xs font-medium text-[#5C5A54]">
                         Commentaire (optionnel)
                       </label>
+
                       <textarea
-                        value={commentaireEtudiant}
-                        onChange={(e) => setCommentaireEtudiant(e.target.value)}
+                        value={
+                          commentaireEtudiant
+                        }
+                        onChange={(e) =>
+                          setCommentaireEtudiant(
+                            e.target.value
+                          )
+                        }
                         rows={2}
                         placeholder="Ajoutez un commentaire si nécessaire..."
                         className="w-full rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#0F3D3E] outline-none transition focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
@@ -588,7 +830,10 @@ export default function ActivitesEtudiant() {
 
                     <button
                       type="submit"
-                      disabled={submitting || !contenuTravail.trim()}
+                      disabled={
+                        submitting ||
+                        !contenuTravail.trim()
+                      }
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#082829] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {submitting ? (

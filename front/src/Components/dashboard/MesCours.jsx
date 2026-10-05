@@ -22,12 +22,16 @@ import {
   Search,
   RotateCcw,
   Users,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const FILES_BASE_URL = "";
 
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
 const LANGUES = ["Français", "Arabe", "Anglais"];
+
+const COURS_PAR_PAGE = 3;
 
 function getContenuUrl(contenuCours) {
   if (!contenuCours) return null;
@@ -168,6 +172,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Titre du cours
             </label>
+
             <input
               type="text"
               name="titre"
@@ -182,6 +187,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Description
             </label>
+
             <textarea
               name="description"
               value={form.description}
@@ -197,6 +203,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Durée (minutes)
               </label>
+
               <input
                 type="number"
                 name="duree"
@@ -212,6 +219,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Niveau
               </label>
+
               <select
                 name="niveauCours"
                 value={form.niveauCours}
@@ -220,9 +228,10 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
                 className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
               >
                 <option value="">Choisir...</option>
-                {NIVEAUX.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
+
+                {NIVEAUX.map((niveau) => (
+                  <option key={niveau} value={niveau}>
+                    {niveau}
                   </option>
                 ))}
               </select>
@@ -233,6 +242,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Langue du cours
             </label>
+
             <select
               name="langueCours"
               value={form.langueCours}
@@ -241,17 +251,19 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
             >
               <option value="">Choisir...</option>
-              {LANGUES.map((l) => (
-                <option key={l} value={l}>
-                  {l}
+
+              {LANGUES.map((langue) => (
+                <option key={langue} value={langue}>
+                  {langue}
                 </option>
               ))}
             </select>
           </div>
 
           <p className="text-xs text-[#5C5A54]">
-            Le fichier de contenu (PDF, Word ou vidéo) ne peut pas être remplacé
-            depuis cette fenêtre. Supprimez le cours et recréez-le si besoin d'en changer.
+            Le fichier de contenu (PDF, Word ou vidéo) ne peut pas être
+            remplacé depuis cette fenêtre. Supprimez le cours et recréez-le si
+            besoin d'en changer.
           </p>
 
           <div className="flex gap-3 pt-2">
@@ -330,7 +342,9 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
 
         <p className="mb-5 text-sm text-[#5C5A54]">
           Cette action est irréversible. Le cours{" "}
-          <span className="font-semibold text-[#3C3A34]">« {cours.titre} »</span>{" "}
+          <span className="font-semibold text-[#3C3A34]">
+            « {cours.titre} »
+          </span>{" "}
           et son fichier associé seront définitivement supprimés.
         </p>
 
@@ -369,7 +383,7 @@ export default function MesCours() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [vue, setVue] = useState("mes"); // "mes" | "tous"
+  const [vue, setVue] = useState("mes");
 
   const [coursAModifier, setCoursAModifier] = useState(null);
   const [coursASupprimer, setCoursASupprimer] = useState(null);
@@ -379,25 +393,32 @@ export default function MesCours() {
   const [filtreLangue, setFiltreLangue] = useState("");
   const [filtreNiveau, setFiltreNiveau] = useState("");
 
+  const [pageActuelle, setPageActuelle] = useState(1);
+
   useEffect(() => {
     const fetchCours = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const url = vue === "mes" ? "/api/cours/mes-cours" : "/api/cours/public";
+        const url =
+          vue === "mes"
+            ? "/api/cours/mes-cours"
+            : "/api/cours/public";
 
         const res = await fetch(url, {
           credentials: "include",
         });
 
         const text = await res.text();
+
         let data;
 
         try {
           data = JSON.parse(text);
         } catch {
           console.error("Réponse non-JSON reçue :", text.slice(0, 500));
+
           throw new Error(
             `Erreur serveur (${res.status}). Réponse non JSON. Voir la console.`
           );
@@ -405,7 +426,9 @@ export default function MesCours() {
 
         if (!res.ok) {
           throw new Error(
-            data.error || data.message || "Impossible de charger les cours."
+            data.error ||
+              data.message ||
+              "Impossible de charger les cours."
           );
         }
 
@@ -422,7 +445,11 @@ export default function MesCours() {
 
   useEffect(() => {
     if (!successMessage) return;
-    const timer = setTimeout(() => setSuccessMessage(null), 3000);
+
+    const timer = setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
+
     return () => clearTimeout(timer);
   }, [successMessage]);
 
@@ -435,23 +462,86 @@ export default function MesCours() {
         (c.titre && c.titre.toLowerCase().includes(term)) ||
         (c.description && c.description.toLowerCase().includes(term));
 
-      const matchLangue = !filtreLangue || c.langueCours === filtreLangue;
-      const matchNiveau = !filtreNiveau || c.niveauCours === filtreNiveau;
+      const matchLangue =
+        !filtreLangue || c.langueCours === filtreLangue;
+
+      const matchNiveau =
+        !filtreNiveau || c.niveauCours === filtreNiveau;
 
       return matchSearch && matchLangue && matchNiveau;
     });
   }, [cours, searchTerm, filtreLangue, filtreNiveau]);
 
+  const totalPages = Math.ceil(
+    coursFiltres.length / COURS_PAR_PAGE
+  );
+
+  const pageSecurisee =
+    totalPages === 0
+      ? 1
+      : Math.min(pageActuelle, totalPages);
+
+  const coursAffiches = useMemo(() => {
+    const indexDebut =
+      (pageSecurisee - 1) * COURS_PAR_PAGE;
+
+    const indexFin = indexDebut + COURS_PAR_PAGE;
+
+    return coursFiltres.slice(indexDebut, indexFin);
+  }, [coursFiltres, pageSecurisee]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPageActuelle(1);
+  };
+
+  const handleLangueChange = (e) => {
+    setFiltreLangue(e.target.value);
+    setPageActuelle(1);
+  };
+
+  const handleNiveauChange = (e) => {
+    setFiltreNiveau(e.target.value);
+    setPageActuelle(1);
+  };
+
+  const handleVueChange = (nouvelleVue) => {
+    setVue(nouvelleVue);
+    setPageActuelle(1);
+  };
+
+  const allerPagePrecedente = () => {
+    setPageActuelle((prev) => Math.max(prev - 1, 1));
+  };
+
+  const allerPageSuivante = () => {
+    setPageActuelle((prev) =>
+      Math.min(prev + 1, totalPages)
+    );
+  };
+
+  const allerPage = (page) => {
+    setPageActuelle(page);
+  };
+
   const handleCoursModifie = (coursMisAJour) => {
     setCours((prev) =>
-      prev.map((c) => (c.id === coursMisAJour.id ? { ...c, ...coursMisAJour } : c))
+      prev.map((c) =>
+        c.id === coursMisAJour.id
+          ? { ...c, ...coursMisAJour }
+          : c
+      )
     );
+
     setCoursAModifier(null);
     setSuccessMessage("Cours modifié avec succès.");
   };
 
   const handleCoursSupprime = (id) => {
-    setCours((prev) => prev.filter((c) => c.id !== id));
+    setCours((prev) =>
+      prev.filter((c) => c.id !== id)
+    );
+
     setCoursASupprimer(null);
     setSuccessMessage("Cours supprimé avec succès.");
   };
@@ -460,19 +550,24 @@ export default function MesCours() {
     setSearchTerm("");
     setFiltreLangue("");
     setFiltreNiveau("");
+    setPageActuelle(1);
   };
 
-  const hasActiveFilters = searchTerm || filtreLangue || filtreNiveau;
+  const hasActiveFilters =
+    searchTerm || filtreLangue || filtreNiveau;
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-5xl">
-        {/* Header */}
+
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
-              {vue === "mes" ? "Mes cours" : "Tous les cours"}
+              {vue === "mes"
+                ? "Mes cours"
+                : "Tous les cours"}
             </h1>
+
             <p className="mt-1 text-sm text-[#5C5A54]">
               {vue === "mes"
                 ? "Gérez et publiez vos cours médicaux (validation admin requise)"
@@ -491,11 +586,10 @@ export default function MesCours() {
           )}
         </div>
 
-        {/* Onglets */}
         <div className="mb-6 flex gap-2 rounded-2xl border border-[#E4DFD3] bg-white p-1.5 shadow-sm">
           <button
             type="button"
-            onClick={() => setVue("mes")}
+            onClick={() => handleVueChange("mes")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
               vue === "mes"
                 ? "bg-[#0F3D3E] text-[#F4C95D]"
@@ -505,9 +599,10 @@ export default function MesCours() {
             <BookOpen size={16} />
             Mes cours
           </button>
+
           <button
             type="button"
-            onClick={() => setVue("tous")}
+            onClick={() => handleVueChange("tous")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
               vue === "tous"
                 ? "bg-[#0F3D3E] text-[#F4C95D]"
@@ -519,7 +614,6 @@ export default function MesCours() {
           </button>
         </div>
 
-        {/* Notification succès */}
         {successMessage && (
           <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-800 shadow-sm">
             <CheckCircle2 size={18} />
@@ -527,126 +621,152 @@ export default function MesCours() {
           </div>
         )}
 
-        {/* BARRE DE RECHERCHE + FILTRES */}
-        {!loading && !error && cours.length > 0 && (
-          <div className="mb-8 overflow-hidden rounded-2xl border border-[#E4DFD3] bg-white shadow-md">
-            <div className="border-b border-[#E4DFD3] bg-gradient-to-r from-[#0F3D3E]/[0.04] to-transparent px-5 py-3.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0F3D3E]/10 text-[#0F3D3E]">
-                    <Filter size={16} />
+        {!loading &&
+          !error &&
+          cours.length > 0 && (
+            <div className="mb-8 overflow-hidden rounded-2xl border border-[#E4DFD3] bg-white shadow-md">
+
+              <div className="border-b border-[#E4DFD3] bg-gradient-to-r from-[#0F3D3E]/[0.04] to-transparent px-5 py-3.5">
+                <div className="flex items-center justify-between">
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0F3D3E]/10 text-[#0F3D3E]">
+                      <Filter size={16} />
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-[#0F3D3E]">
+                        Recherche & Filtres
+                      </p>
+
+                      <p className="text-xs text-[#5C5A54]">
+                        Trouvez rapidement des cours
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#0F3D3E]">
-                      Recherche & Filtres
-                    </p>
-                    <p className="text-xs text-[#5C5A54]">
-                      Trouvez rapidement des cours
-                    </p>
-                  </div>
+
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={resetFiltres}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F3D3E]/5 px-3 py-1.5 text-xs font-medium text-[#0F3D3E] transition hover:bg-[#0F3D3E]/10"
+                    >
+                      <RotateCcw size={13} />
+                      Réinitialiser
+                    </button>
+                  )}
                 </div>
-
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={resetFiltres}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F3D3E]/5 px-3 py-1.5 text-xs font-medium text-[#0F3D3E] transition hover:bg-[#0F3D3E]/10"
-                  >
-                    <RotateCcw size={13} />
-                    Réinitialiser
-                  </button>
-                )}
               </div>
-            </div>
 
-            <div className="space-y-5 p-5">
-              <div className="relative group">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                  <Search
-                    size={18}
-                    className="text-[#5C5A54] transition group-focus-within:text-[#0F3D3E]"
+              <div className="space-y-5 p-5">
+
+                <div className="relative group">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <Search
+                      size={18}
+                      className="text-[#5C5A54] transition group-focus-within:text-[#0F3D3E]"
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Rechercher par titre ou description..."
+                    className="w-full rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] py-3.5 pl-12 pr-12 text-sm text-[#3C3A34] placeholder:text-[#9A9790] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
                   />
+
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setPageActuelle(1);
+                      }}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#5C5A54] transition hover:bg-[#0F3D3E]/10 hover:text-[#0F3D3E]"
+                      aria-label="Effacer la recherche"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
 
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Rechercher par titre ou description..."
-                  className="w-full rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] py-3.5 pl-12 pr-12 text-sm text-[#3C3A34] placeholder:text-[#9A9790] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
-                />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#5C5A54] transition hover:bg-[#0F3D3E]/10 hover:text-[#0F3D3E]"
-                    aria-label="Effacer la recherche"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
+                  <div className="flex flex-wrap gap-4">
 
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div className="flex flex-wrap gap-4">
-                  <div className="min-w-[160px] flex-1 sm:flex-none">
-                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
-                      <Globe size={12} />
-                      Langue
-                    </label>
-                    <select
-                      value={filtreLangue}
-                      onChange={(e) => setFiltreLangue(e.target.value)}
-                      className="w-full appearance-none rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-4 py-2.5 text-sm text-[#3C3A34] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
-                    >
-                      <option value="">Toutes les langues</option>
-                      {LANGUES.map((l) => (
-                        <option key={l} value={l}>
-                          {l}
+                    <div className="min-w-[160px] flex-1 sm:flex-none">
+                      <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
+                        <Globe size={12} />
+                        Langue
+                      </label>
+
+                      <select
+                        value={filtreLangue}
+                        onChange={handleLangueChange}
+                        className="w-full appearance-none rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-4 py-2.5 text-sm text-[#3C3A34] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
+                      >
+                        <option value="">
+                          Toutes les langues
                         </option>
-                      ))}
-                    </select>
+
+                        {LANGUES.map((langue) => (
+                          <option
+                            key={langue}
+                            value={langue}
+                          >
+                            {langue}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="min-w-[160px] flex-1 sm:flex-none">
+                      <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
+                        <BookOpen size={12} />
+                        Niveau
+                      </label>
+
+                      <select
+                        value={filtreNiveau}
+                        onChange={handleNiveauChange}
+                        className="w-full appearance-none rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-4 py-2.5 text-sm text-[#3C3A34] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
+                      >
+                        <option value="">
+                          Tous les niveaux
+                        </option>
+
+                        {NIVEAUX.map((niveau) => (
+                          <option
+                            key={niveau}
+                            value={niveau}
+                          >
+                            {niveau}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
-                  <div className="min-w-[160px] flex-1 sm:flex-none">
-                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
-                      <BookOpen size={12} />
-                      Niveau
-                    </label>
-                    <select
-                      value={filtreNiveau}
-                      onChange={(e) => setFiltreNiveau(e.target.value)}
-                      className="w-full appearance-none rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-4 py-2.5 text-sm text-[#3C3A34] shadow-sm outline-none transition focus:border-[#0F3D3E] focus:bg-white focus:ring-2 focus:ring-[#0F3D3E]/15"
+                  <div className="flex items-center gap-2 self-end">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${
+                        hasActiveFilters
+                          ? "bg-[#0F3D3E] text-[#F4C95D]"
+                          : "bg-[#0F3D3E]/10 text-[#0F3D3E]"
+                      }`}
                     >
-                      <option value="">Tous les niveaux</option>
-                      {NIVEAUX.map((n) => (
-                        <option key={n} value={n}>
-                          {n}
-                        </option>
-                      ))}
-                    </select>
+                      {coursFiltres.length} cours
+                      {hasActiveFilters
+                        ? " trouvé(s)"
+                        : ""}
+                    </span>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-end">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${
-                      hasActiveFilters
-                        ? "bg-[#0F3D3E] text-[#F4C95D]"
-                        : "bg-[#0F3D3E]/10 text-[#0F3D3E]"
-                    }`}
-                  >
-                    {coursFiltres.length} cours
-                    {hasActiveFilters ? " trouvé(s)" : ""}
-                  </span>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Etats de chargement / erreur */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 text-[#5C5A54]">
             <Loader2 className="mb-3 h-8 w-8 animate-spin text-[#0F3D3E]" />
@@ -661,46 +781,49 @@ export default function MesCours() {
           </div>
         )}
 
-        {/* Aucun cours disponible */}
-        {!loading && !error && cours.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F3D3E]/5 text-[#0F3D3E]">
-              <BookOpen size={28} />
+        {!loading &&
+          !error &&
+          cours.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-12 text-center shadow-sm">
+
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F3D3E]/5 text-[#0F3D3E]">
+                <BookOpen size={28} />
+              </div>
+
+              <h2 className="text-lg font-semibold text-[#0F3D3E]">
+                {vue === "mes"
+                  ? "Aucun cours pour le moment"
+                  : "Aucun cours public disponible"}
+              </h2>
+
+              <p className="mt-2 text-sm text-[#5C5A54]">
+                {vue === "mes"
+                  ? "Commencez par publier votre premier cours. Il sera visible sur la plateforme après validation par un administrateur."
+                  : "Il n'y a pas encore de cours approuvés publiés par d'autres utilisateurs."}
+              </p>
+
+              {vue === "mes" && (
+                <Link
+                  to="/dashboard/medecin/cours/ajouter"
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] transition hover:bg-[#FBF9F4]"
+                >
+                  <Plus size={16} />
+                  Créer mon premier cours
+                </Link>
+              )}
             </div>
+          )}
 
-            <h2 className="text-lg font-semibold text-[#0F3D3E]">
-              {vue === "mes"
-                ? "Aucun cours pour le moment"
-                : "Aucun cours public disponible"}
-            </h2>
-
-            <p className="mt-2 text-sm text-[#5C5A54]">
-              {vue === "mes"
-                ? "Commencez par publier votre premier cours. Il sera visible sur la plateforme après validation par un administrateur."
-                : "Il n'y a pas encore de cours approuvés publiés par d'autres utilisateurs."}
-            </p>
-
-            {vue === "mes" && (
-              <Link
-                to="/dashboard/medecin/cours/ajouter"
-                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] transition hover:bg-[#FBF9F4]"
-              >
-                <Plus size={16} />
-                Créer mon premier cours
-              </Link>
-            )}
-          </div>
-        )}
-
-        {/* Aucun résultat de recherche */}
         {!loading &&
           !error &&
           cours.length > 0 &&
           coursFiltres.length === 0 && (
             <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-10 text-center shadow-sm">
+
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#0F3D3E]/5 text-[#0F3D3E]">
                 <Search size={22} />
               </div>
+
               <p className="text-sm font-medium text-[#3C3A34]">
                 Aucun cours ne correspond à votre recherche ou aux filtres sélectionnés.
               </p>
@@ -716,116 +839,215 @@ export default function MesCours() {
             </div>
           )}
 
-        {/* Liste des cours */}
-        {!loading && !error && coursFiltres.length > 0 && (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {coursFiltres.map((c) => {
-              const contenuUrl = getContenuUrl(c.contenuCours);
+        {!loading &&
+          !error &&
+          coursFiltres.length > 0 && (
+            <>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 
-              return (
-                <article
-                  key={c.id}
-                  className="flex flex-col rounded-2xl border border-[#E4DFD3] bg-white p-5 shadow-sm transition hover:shadow-md"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <h3 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E]">
-                      {c.titre}
-                    </h3>
+                {coursAffiches.map((c) => {
+                  const contenuUrl =
+                    getContenuUrl(c.contenuCours);
 
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="rounded-full bg-[#0F3D3E]/10 px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
-                        {c.niveauCours}
-                      </span>
-
-                      {vue === "mes" && <StatutBadge statut={c.statut} />}
-                    </div>
-                  </div>
-
-                  <p className="mb-4 line-clamp-2 flex-1 text-sm text-[#5C5A54]">
-                    {c.description}
-                  </p>
-
-                  <div className="space-y-2 border-t border-[#E4DFD3] pt-4 text-xs text-[#737873]">
-                    <div className="flex items-center gap-2">
-                      <Clock size={14} />
-                      <span>{c.duree} min</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Globe size={14} />
-                      <span>{c.langueCours}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} />
-                      <span>
-                        {c.dateCreation
-                          ? new Date(c.dateCreation).toLocaleDateString(
-                              "fr-FR",
-                              {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              }
-                            )
-                          : "—"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {contenuUrl && (
-                    <a
-                      href={contenuUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-3 py-2.5 text-xs font-semibold text-[#0F3D3E] transition hover:border-[#0F3D3E]/40 hover:bg-[#0F3D3E]/5"
+                  return (
+                    <article
+                      key={c.id}
+                      className="flex flex-col rounded-2xl border border-[#E4DFD3] bg-white p-5 shadow-sm transition hover:shadow-md"
                     >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <ContenuIcon type={c.typeContenu} />
-                        <span className="truncate">
-                          {contenuLabel(c.typeContenu)}
-                          {c.nomOriginalFichier
-                            ? ` — ${c.nomOriginalFichier}`
-                            : ""}
-                        </span>
-                      </span>
 
-                      <ExternalLink size={14} className="shrink-0" />
-                    </a>
-                  )}
+                      <div className="mb-3 flex items-start justify-between gap-2">
+                        <h3 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E]">
+                          {c.titre}
+                        </h3>
 
-                  {vue === "mes" && c.statut !== "approuve" && (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCoursAModifier(c)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E4DFD3] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#0F3D3E]/5"
-                      >
-                        <Pencil size={14} />
-                        Modifier
-                      </button>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="rounded-full bg-[#0F3D3E]/10 px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
+                            {c.niveauCours}
+                          </span>
 
-                      <button
-                        type="button"
-                        onClick={() => setCoursASupprimer(c)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                      >
-                        <Trash2 size={14} />
-                        Supprimer
-                      </button>
+                          {vue === "mes" && (
+                            <StatutBadge
+                              statut={c.statut}
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="mb-4 line-clamp-2 flex-1 text-sm text-[#5C5A54]">
+                        {c.description}
+                      </p>
+
+                      <div className="space-y-2 border-t border-[#E4DFD3] pt-4 text-xs text-[#737873]">
+
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} />
+                          <span>
+                            {c.duree} min
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Globe size={14} />
+                          <span>
+                            {c.langueCours}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} />
+                          <span>
+                            {c.dateCreation
+                              ? new Date(
+                                  c.dateCreation
+                                ).toLocaleDateString(
+                                  "fr-FR",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )
+                              : "—"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {contenuUrl && (
+                        <a
+                          href={contenuUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-[#E4DFD3] bg-[#FBF9F4] px-3 py-2.5 text-xs font-semibold text-[#0F3D3E] transition hover:border-[#0F3D3E]/40 hover:bg-[#0F3D3E]/5"
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <ContenuIcon
+                              type={c.typeContenu}
+                            />
+
+                            <span className="truncate">
+                              {contenuLabel(
+                                c.typeContenu
+                              )}
+
+                              {c.nomOriginalFichier
+                                ? ` — ${c.nomOriginalFichier}`
+                                : ""}
+                            </span>
+                          </span>
+
+                          <ExternalLink
+                            size={14}
+                            className="shrink-0"
+                          />
+                        </a>
+                      )}
+
+                      {vue === "mes" &&
+                        c.statut !== "approuve" && (
+                          <div className="mt-3 flex gap-2">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCoursAModifier(c)
+                              }
+                              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E4DFD3] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#0F3D3E]/5"
+                            >
+                              <Pencil size={14} />
+                              Modifier
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCoursASupprimer(c)
+                              }
+                              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                            >
+                              <Trash2 size={14} />
+                              Supprimer
+                            </button>
+                          </div>
+                        )}
+                    </article>
+                  );
+                })}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="mt-8 flex flex-col items-center justify-center gap-4">
+
+                  <div className="text-sm text-[#5C5A54]">
+                    Page{" "}
+                    <span className="font-semibold text-[#0F3D3E]">
+                      {pageSecurisee}
+                    </span>{" "}
+                    sur{" "}
+                    <span className="font-semibold text-[#0F3D3E]">
+                      {totalPages}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+
+                    <button
+                      type="button"
+                      onClick={allerPagePrecedente}
+                      disabled={pageSecurisee === 1}
+                      className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#E4DFD3] bg-white px-3 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-[#FBF9F4] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronLeft size={17} />
+                      Précédent
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from(
+                        { length: totalPages },
+                        (_, index) => index + 1
+                      ).map((page) => (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => allerPage(page)}
+                          className={`flex h-10 min-w-10 items-center justify-center rounded-xl px-3 text-sm font-semibold transition ${
+                            pageSecurisee === page
+                              ? "bg-[#0F3D3E] text-[#F4C95D] shadow-sm"
+                              : "border border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#FBF9F4]"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
                     </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
+
+                    <button
+                      type="button"
+                      onClick={allerPageSuivante}
+                      disabled={
+                        pageSecurisee === totalPages
+                      }
+                      className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#E4DFD3] bg-white px-3 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-[#FBF9F4] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Suivant
+                      <ChevronRight size={17} />
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-[#737873]">
+                    {coursFiltres.length} cours au total — 3 cours maximum par page
+                  </p>
+                </div>
+              )}
+            </>
+          )}
       </div>
 
       {coursAModifier && (
         <ModifierCoursModal
           cours={coursAModifier}
-          onClose={() => setCoursAModifier(null)}
+          onClose={() =>
+            setCoursAModifier(null)
+          }
           onSaved={handleCoursModifie}
         />
       )}
@@ -833,7 +1055,9 @@ export default function MesCours() {
       {coursASupprimer && (
         <SupprimerCoursModal
           cours={coursASupprimer}
-          onClose={() => setCoursASupprimer(null)}
+          onClose={() =>
+            setCoursASupprimer(null)
+          }
           onDeleted={handleCoursSupprime}
         />
       )}

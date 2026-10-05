@@ -15,9 +15,12 @@ import {
   Ban,
   Check,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const FILES_BASE_URL = "";
+const ITEMS_PER_PAGE = 3;
 
 function getContenuUrl(contenuCours) {
   if (!contenuCours) return null;
@@ -64,6 +67,47 @@ function StatutBadge({ statut }) {
   );
 }
 
+function Pagination({ currentPage, totalPages, onPageChange }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="mt-8 flex items-center justify-center gap-2">
+      <button
+        type="button"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E4DFD3] bg-white text-[#0F3D3E] transition hover:bg-[#0F3D3E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <ChevronLeft size={18} />
+      </button>
+
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        <button
+          key={page}
+          type="button"
+          onClick={() => onPageChange(page)}
+          className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-3 text-sm font-semibold transition ${
+            currentPage === page
+              ? "bg-[#0F3D3E] text-[#F4C95D]"
+              : "border border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#0F3D3E]/5"
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E4DFD3] bg-white text-[#0F3D3E] transition hover:bg-[#0F3D3E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  );
+}
+
 export default function AdminCours() {
   const [pendingCours, setPendingCours] = useState([]);
   const [approvedCours, setApprovedCours] = useState([]);
@@ -73,7 +117,10 @@ export default function AdminCours() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
 
-  // Chargement initial des données (corrigé pour ESLint)
+  // Pagination
+  const [pendingPage, setPendingPage] = useState(1);
+  const [approvedPage, setApprovedPage] = useState(1);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -82,7 +129,6 @@ export default function AdminCours() {
       setError(null);
 
       try {
-        // Cours en attente (admin only)
         const resPending = await fetch("/api/cours/admin/en-attente", {
           credentials: "include",
         });
@@ -101,7 +147,6 @@ export default function AdminCours() {
           );
         }
 
-        // Cours déjà approuvés (public)
         const resApproved = await fetch("/api/cours/public", {
           credentials: "include",
         });
@@ -123,6 +168,8 @@ export default function AdminCours() {
         if (!cancelled) {
           setPendingCours(dataPending);
           setApprovedCours(dataApproved);
+          setPendingPage(1);
+          setApprovedPage(1);
         }
       } catch (err) {
         if (!cancelled) {
@@ -142,12 +189,17 @@ export default function AdminCours() {
     };
   }, []);
 
-  // Auto-disparition du message de succès
   useEffect(() => {
     if (!successMessage) return;
     const timer = setTimeout(() => setSuccessMessage(null), 3500);
     return () => clearTimeout(timer);
   }, [successMessage]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setPendingPage(1);
+    setApprovedPage(1);
+  };
 
   const handleApprove = async (id) => {
     setActionLoading(id);
@@ -320,6 +372,19 @@ export default function AdminCours() {
     );
   };
 
+  // Pagination helpers
+  const pendingTotalPages = Math.ceil(pendingCours.length / ITEMS_PER_PAGE);
+  const approvedTotalPages = Math.ceil(approvedCours.length / ITEMS_PER_PAGE);
+
+  const pendingPaginated = pendingCours.slice(
+    (pendingPage - 1) * ITEMS_PER_PAGE,
+    pendingPage * ITEMS_PER_PAGE
+  );
+  const approvedPaginated = approvedCours.slice(
+    (approvedPage - 1) * ITEMS_PER_PAGE,
+    approvedPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-6xl">
@@ -354,7 +419,7 @@ export default function AdminCours() {
         <div className="mb-6 flex gap-2 border-b border-[#E4DFD3]">
           <button
             type="button"
-            onClick={() => setActiveTab("pending")}
+            onClick={() => handleTabChange("pending")}
             className={`px-4 py-2.5 text-sm font-semibold transition ${
               activeTab === "pending"
                 ? "border-b-2 border-[#0F3D3E] text-[#0F3D3E]"
@@ -370,7 +435,7 @@ export default function AdminCours() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("approved")}
+            onClick={() => handleTabChange("approved")}
             className={`px-4 py-2.5 text-sm font-semibold transition ${
               activeTab === "approved"
                 ? "border-b-2 border-[#0F3D3E] text-[#0F3D3E]"
@@ -412,9 +477,16 @@ export default function AdminCours() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {pendingCours.map((c) => renderCoursCard(c, true))}
-                  </div>
+                  <>
+                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                      {pendingPaginated.map((c) => renderCoursCard(c, true))}
+                    </div>
+                    <Pagination
+                      currentPage={pendingPage}
+                      totalPages={pendingTotalPages}
+                      onPageChange={setPendingPage}
+                    />
+                  </>
                 )}
               </>
             )}
@@ -434,9 +506,16 @@ export default function AdminCours() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {approvedCours.map((c) => renderCoursCard(c, false))}
-                  </div>
+                  <>
+                    <div className="grid gap-[#0F3D3E] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {approvedPaginated.map((c) => renderCoursCard(c, false))}
+                    </div>
+                    <Pagination
+                      currentPage={approvedPage}
+                      totalPages={approvedTotalPages}
+                      onPageChange={setApprovedPage}
+                    />
+                  </>
                 )}
               </>
             )}

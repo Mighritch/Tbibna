@@ -11,24 +11,25 @@ import {
   Sparkles,
   Loader2,
   Eye,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
-// Options fixes (affichées dans les filtres)
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
 const LANGUES = ["Français", "Arabe", "Anglais"];
+const ITEMS_PER_PAGE = 3;
 
 export default function CoursEtudiant() {
   const [cours, setCours] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filtres & recherche
   const [search, setSearch] = useState("");
   const [langue, setLangue] = useState("");
   const [niveau, setNiveau] = useState("");
 
-  // État pour les résumés IA
-  const [resumes, setResumes] = useState({}); // { [coursId]: { text, loading, error } }
+  const [resumes, setResumes] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const fetchCours = async () => {
@@ -46,6 +47,7 @@ export default function CoursEtudiant() {
 
         const data = await res.json();
         setCours(Array.isArray(data) ? data : []);
+        setCurrentPage(1);
       } catch (err) {
         console.error(err);
         setError(err.message || "Une erreur est survenue.");
@@ -57,7 +59,11 @@ export default function CoursEtudiant() {
     fetchCours();
   }, []);
 
-  // Filtrage côté client (insensible à la casse)
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, langue, niveau]);
+
   const coursFiltres = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -81,10 +87,17 @@ export default function CoursEtudiant() {
     });
   }, [cours, search, langue, niveau]);
 
+  const totalPages = Math.ceil(coursFiltres.length / ITEMS_PER_PAGE);
+  const coursPagines = coursFiltres.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const resetFiltres = () => {
     setSearch("");
     setLangue("");
     setNiveau("");
+    setCurrentPage(1);
   };
 
   const getTypeIcon = (type) => {
@@ -166,7 +179,6 @@ export default function CoursEtudiant() {
         {/* Barre de recherche + filtres */}
         <div className="mb-8 rounded-2xl border border-[#E6E1D5] bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-            {/* Recherche */}
             <div className="flex-1">
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#737873]">
                 Rechercher
@@ -186,7 +198,6 @@ export default function CoursEtudiant() {
               </div>
             </div>
 
-            {/* Filtre Langue */}
             <div className="w-full lg:w-48">
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#737873]">
                 Langue
@@ -211,7 +222,6 @@ export default function CoursEtudiant() {
               </div>
             </div>
 
-            {/* Filtre Niveau */}
             <div className="w-full lg:w-48">
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#737873]">
                 Niveau
@@ -236,7 +246,6 @@ export default function CoursEtudiant() {
               </div>
             </div>
 
-            {/* Bouton réinitialiser */}
             {(search || langue || niveau) && (
               <button
                 type="button"
@@ -248,7 +257,6 @@ export default function CoursEtudiant() {
             )}
           </div>
 
-          {/* Compteur de résultats */}
           {!loading && !error && (
             <p className="mt-4 text-sm text-[#737873]">
               {coursFiltres.length} cours trouvé
@@ -294,129 +302,165 @@ export default function CoursEtudiant() {
 
         {/* Liste des cours */}
         {!loading && !error && coursFiltres.length > 0 && (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {coursFiltres.map((c) => {
-              const resumeState = resumes[c.id] || {};
+          <>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {coursPagines.map((c) => {
+                const resumeState = resumes[c.id] || {};
 
-              return (
-                <article
-                  key={c.id}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-[#E6E1D5] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#0F3D3E]/25 hover:shadow-lg"
-                >
-                  {/* En-tête de carte */}
-                  <div className="flex items-start justify-between gap-3 border-b border-[#E6E1D5]/70 bg-[#FAF8F5] px-5 py-4">
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
-                        {getTypeIcon(c.typeContenu)}
-                      </span>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#737873]">
-                        {getTypeLabel(c.typeContenu)}
-                      </span>
-                    </div>
-                    <span className="rounded-full bg-[#EBF3F0] px-2.5 py-1 text-[11px] font-medium text-[#2A6B59]">
-                      {c.niveauCours || "—"}
-                    </span>
-                  </div>
-
-                  {/* Corps */}
-                  <div className="flex flex-1 flex-col p-5">
-                    <h2 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E] line-clamp-2">
-                      {c.titre}
-                    </h2>
-
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-[#737873] line-clamp-3">
-                      {c.description}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#737873]">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Clock size={14} />
-                        {c.duree ? `${c.duree} min` : "—"}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <Globe size={14} />
-                        {c.langueCours || "—"}
+                return (
+                  <article
+                    key={c.id}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-[#E6E1D5] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#0F3D3E]/25 hover:shadow-lg"
+                  >
+                    <div className="flex items-start justify-between gap-3 border-b border-[#E6E1D5]/70 bg-[#FAF8F5] px-5 py-4">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
+                          {getTypeIcon(c.typeContenu)}
+                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-[#737873]">
+                          {getTypeLabel(c.typeContenu)}
+                        </span>
+                      </div>
+                      <span className="rounded-full bg-[#EBF3F0] px-2.5 py-1 text-[11px] font-medium text-[#2A6B59]">
+                        {c.niveauCours || "—"}
                       </span>
                     </div>
 
-                    {/* Zone résumé IA */}
-                    {resumeState.text && (
-                      <div className="mt-4 rounded-xl border border-[#E6E1D5] bg-[#FAF8F5] p-3.5">
-                        <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#2A6B59]">
-                          <Sparkles size={13} />
-                          Résumé IA
-                        </p>
-                        <p className="text-sm leading-relaxed text-[#0F3D3E]">
-                          {resumeState.text}
-                        </p>
-                      </div>
-                    )}
+                    <div className="flex flex-1 flex-col p-5">
+                      <h2 className="font-serif text-lg font-semibold leading-snug text-[#0F3D3E] line-clamp-2">
+                        {c.titre}
+                      </h2>
 
-                    {resumeState.error && (
-                      <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-                        {resumeState.error}
-                      </div>
-                    )}
-                  </div>
+                      <p className="mt-2 flex-1 text-sm leading-relaxed text-[#737873] line-clamp-3">
+                        {c.description}
+                      </p>
 
-                  {/* Pied de carte */}
-                  <div className="border-t border-[#E6E1D5]/70 px-5 py-3.5 space-y-2.5">
-                    {/* Bouton résumé IA */}
-                    <button
-                      type="button"
-                      onClick={() => genererResume(c.id)}
-                      disabled={resumeState.loading}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#2A6B59]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#2A6B59] transition-colors hover:bg-[#EBF3F0] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {resumeState.loading ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" />
-                          Génération en cours...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={16} />
-                          {resumeState.text
-                            ? "Régénérer le résumé"
-                            : "Résumer avec l’IA"}
-                        </>
+                      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#737873]">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock size={14} />
+                          {c.duree ? `${c.duree} min` : "—"}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Globe size={14} />
+                          {c.langueCours || "—"}
+                        </span>
+                      </div>
+
+                      {resumeState.text && (
+                        <div className="mt-4 rounded-xl border border-[#E6E1D5] bg-[#FAF8F5] p-3.5">
+                          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#2A6B59]">
+                            <Sparkles size={13} />
+                            Résumé IA
+                          </p>
+                          <p className="text-sm leading-relaxed text-[#0F3D3E]">
+                            {resumeState.text}
+                          </p>
+                        </div>
                       )}
+
+                      {resumeState.error && (
+                        <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                          {resumeState.error}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-[#E6E1D5]/70 px-5 py-3.5 space-y-2.5">
+                      <button
+                        type="button"
+                        onClick={() => genererResume(c.id)}
+                        disabled={resumeState.loading}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#2A6B59]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#2A6B59] transition-colors hover:bg-[#EBF3F0] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {resumeState.loading ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Génération en cours...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={16} />
+                            {resumeState.text
+                              ? "Régénérer le résumé"
+                              : "Résumer avec l’IA"}
+                          </>
+                        )}
+                      </button>
+
+                      {c.contenuCours ? (
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <a
+                            href={c.contenuCours}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2A6B59] bg-white px-3 py-2.5 text-sm font-semibold text-[#2A6B59] transition-colors hover:bg-[#EBF3F0]"
+                          >
+                            <Eye size={16} />
+                            Voir
+                          </a>
+
+                          <a
+                            href={c.contenuCours}
+                            download={c.nomOriginalFichier || true}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2A6B59] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1e5244]"
+                          >
+                            <Download size={16} />
+                            Télécharger
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="block rounded-xl border border-[#E6E1D5] bg-[#FAF8F5] px-4 py-2.5 text-center text-sm text-[#737873]">
+                          Fichier non disponible
+                        </span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E6E1D5] bg-white text-[#0F3D3E] transition hover:bg-[#EBF3F0] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-3 text-sm font-semibold transition ${
+                        currentPage === page
+                          ? "bg-[#2A6B59] text-white"
+                          : "border border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#EBF3F0]"
+                      }`}
+                    >
+                      {page}
                     </button>
+                  )
+                )}
 
-                    {/* Deux boutons : Voir + Télécharger */}
-                    {c.contenuCours ? (
-                      <div className="grid grid-cols-2 gap-2.5">
-                        {/* Bouton Voir le cours */}
-                        <a
-                          href={c.contenuCours}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2A6B59] bg-white px-3 py-2.5 text-sm font-semibold text-[#2A6B59] transition-colors hover:bg-[#EBF3F0]"
-                        >
-                          <Eye size={16} />
-                          Voir
-                        </a>
-
-                        {/* Bouton Télécharger */}
-                        <a
-                          href={c.contenuCours}
-                          download={c.nomOriginalFichier || true}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2A6B59] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1e5244]"
-                        >
-                          <Download size={16} />
-                          Télécharger
-                        </a>
-                      </div>
-                    ) : (
-                      <span className="block rounded-xl border border-[#E6E1D5] bg-[#FAF8F5] px-4 py-2.5 text-center text-sm text-[#737873]">
-                        Fichier non disponible
-                      </span>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E6E1D5] bg-white text-[#0F3D3E] transition hover:bg-[#EBF3F0] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
