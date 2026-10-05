@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 const ITEMS_PER_PAGE = 3;
+const POLL_INTERVAL = 5000; // 5 secondes
 
 function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
   if (totalItems <= ITEMS_PER_PAGE) return null;
@@ -31,8 +32,8 @@ function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
   return (
     <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm sm:flex-row">
       <p className="text-sm text-[#5C5A54]">
-        Affichage de <span className="font-medium text-[#0F3D3E]">{start}</span>
-        {" "}à <span className="font-medium text-[#0F3D3E]">{end}</span> sur{" "}
+        Affichage de <span className="font-medium text-[#0F3D3E]">{start}</span>{" "}
+        à <span className="font-medium text-[#0F3D3E]">{end}</span> sur{" "}
         <span className="font-medium text-[#0F3D3E]">{totalItems}</span> activités
       </p>
 
@@ -66,7 +67,7 @@ function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
           type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-[#0F3D3E] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
         >
           Suivant
           <ChevronRight size={16} />
@@ -103,14 +104,18 @@ export default function MesActivites() {
   const [sortDifficulte, setSortDifficulte] = useState(""); // "" | "facile" | "moyen" | "difficile"
   const [sortStatut, setSortStatut] = useState(""); // "" | "en_attente" | "accepte" | "refuse"
 
-  // Chargement des activités selon la vue
-  useEffect(() => {
-    let cancelled = false;
+  // Ref pour éviter les race conditions et les appels superposés
+  const isMounted = useRef(true);
+  const isPolling = useRef(false);
 
-    const loadActivites = async () => {
+  // Fonction de chargement réutilisable
+  const loadActivites = useCallback(
+    async (silent = false) => {
       try {
-        setLoading(true);
-        setError(null);
+        if (!silent) {
+          setLoading(true);
+          setError(null);
+        }
 
         const url =
           vue === "mes"
@@ -134,27 +139,65 @@ export default function MesActivites() {
 
         const data = await res.json();
 
-        if (!cancelled) {
+        if (isMounted.current) {
           setActivites(Array.isArray(data) ? data : []);
+          // On met aussi à jour le modal de visualisation si l'activité ouverte a changé de statut
+          setViewingActivite((prev) => {
+            if (!prev) return null;
+            const updated = (Array.isArray(data) ? data : []).find(
+              (a) => a.id === prev.id
+            );
+            return updated || prev;
+          });
         }
       } catch (err) {
         console.error(err);
-        if (!cancelled) {
+        if (isMounted.current && !silent) {
           setError(err.message || "Une erreur est survenue");
         }
       } finally {
-        if (!cancelled) {
+        if (isMounted.current && !silent) {
           setLoading(false);
         }
       }
+    },
+    [vue]
+  );
+
+  // Chargement initial + quand on change de vue
+  useEffect(() => {
+    isMounted.current = true;
+    let isCancelled = false;
+
+    const fetchData = async () => {
+      if (!isCancelled) {
+        await loadActivites(false);
+      }
     };
 
-    loadActivites();
+    fetchData();
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
+      isMounted.current = false;
     };
-  }, [vue]);
+  }, [loadActivites]);
+
+  // === POLLING temps réel (uniquement en vue "mes") ===
+  useEffect(() => {
+    if (vue !== "mes") return;
+
+    const intervalId = setInterval(() => {
+      if (isPolling.current) return;
+      isPolling.current = true;
+
+      loadActivites(true).finally(() => {
+        isPolling.current = false;
+      });
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [vue, loadActivites]);
 
   // Liste triée / filtrée
   const activitesFiltrees = useMemo(() => {
@@ -501,89 +544,89 @@ export default function MesActivites() {
           </div>
         ) : (
           <>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {paginated.map((act) => (
-              <div
-                key={act.id}
-                className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
-                    {act.titre}
-                  </h2>
-                  {vue === "mes" && getStatutBadge(act.statut)}
-                </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              {paginated.map((act) => (
+                <div
+                  key={act.id}
+                  className="rounded-2xl border border-[#E4DFD3] bg-white p-6 shadow-sm transition hover:border-[#0F3D3E]/25 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
+                      {act.titre}
+                    </h2>
+                    {vue === "mes" && getStatutBadge(act.statut)}
+                  </div>
 
-                {/* Affichage du médecin auteur en vue "tous" */}
-                {vue === "tous" && act.medecin && (
-                  <p className="mt-1 text-xs font-medium text-[#0F3D3E]/70">
-                    Par Dr. {act.medecin.prenom} {act.medecin.nom}
-                  </p>
-                )}
-
-                <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
-                  {act.description}
-                </p>
-
-                <div className="mt-5 flex items-center gap-4 text-xs text-[#737873]">
-                  <span className="flex items-center gap-1.5">
-                    <Clock size={14} />
-                    {act.duree} min
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <BarChart3 size={14} />
-                    {act.difficulte}
-                  </span>
-                </div>
-
-                <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[#E4DFD3] pt-4">
-                  <button
-                    type="button"
-                    onClick={() => openViewModal(act)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
-                  >
-                    <Eye size={16} />
-                    Voir instructions
-                  </button>
-
-                  {/* Boutons Modifier / Supprimer uniquement en vue "mes" */}
-                  {vue === "mes" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(act)}
-                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
-                      >
-                        <Pencil size={16} />
-                        Modifier
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(act.id)}
-                        disabled={deletingId === act.id}
-                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
-                      >
-                        {deletingId === act.id ? (
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-700 border-t-transparent" />
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                        Supprimer
-                      </button>
-                    </>
+                  {/* Affichage du médecin auteur en vue "tous" */}
+                  {vue === "tous" && act.medecin && (
+                    <p className="mt-1 text-xs font-medium text-[#0F3D3E]/70">
+                      Par Dr. {act.medecin.prenom} {act.medecin.nom}
+                    </p>
                   )}
-                </div>
-              </div>
-            ))}
-          </div>
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={activitesFiltrees.length}
-            onPageChange={handlePageChange}
-          />
+                  <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
+                    {act.description}
+                  </p>
+
+                  <div className="mt-5 flex items-center gap-4 text-xs text-[#737873]">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={14} />
+                      {act.duree} min
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <BarChart3 size={14} />
+                      {act.difficulte}
+                    </span>
+                  </div>
+
+                  <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[#E4DFD3] pt-4">
+                    <button
+                      type="button"
+                      onClick={() => openViewModal(act)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                    >
+                      <Eye size={16} />
+                      Voir instructions
+                    </button>
+
+                    {/* Boutons Modifier / Supprimer uniquement en vue "mes" */}
+                    {vue === "mes" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(act)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                        >
+                          <Pencil size={16} />
+                          Modifier
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(act.id)}
+                          disabled={deletingId === act.id}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+                        >
+                          {deletingId === act.id ? (
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-700 border-t-transparent" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                          Supprimer
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={activitesFiltrees.length}
+              onPageChange={handlePageChange}
+            />
           </>
         )}
       </div>
