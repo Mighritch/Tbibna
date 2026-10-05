@@ -483,6 +483,10 @@ class CoursController extends AbstractController
         }
     }
 
+    /**
+     * Liste publique des cours approuvés
+     * (utilisée par les étudiants ET par les autres médecins dans l'onglet "Tous les cours")
+     */
     #[Route('/public', name: 'cours_public_list', methods: ['GET'])]
     public function publicList(): JsonResponse
     {
@@ -492,18 +496,30 @@ class CoursController extends AbstractController
                 ['dateCreation' => 'DESC']
             );
 
-            $result = array_map(static fn(Cours $c) => [
-                'id' => $c->getId(),
-                'titre' => $c->getTitre(),
-                'description' => $c->getDescription(),
-                'duree' => $c->getDuree(),
-                'langueCours' => $c->getLangueCours(),
-                'niveauCours' => $c->getNiveauCours(),
-                'contenuCours' => $c->getContenuCours(),
-                'nomOriginalFichier' => $c->getNomOriginalFichier(),
-                'typeContenu' => $c->getTypeContenu(),
-                'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
-            ], $coursList);
+            $result = array_map(function (Cours $c) {
+                $medecin = $c->getMedecin();
+                $utilisateur = $medecin?->getUtilisateur();
+
+                return [
+                    'id' => $c->getId(),
+                    'titre' => $c->getTitre(),
+                    'description' => $c->getDescription(),
+                    'duree' => $c->getDuree(),
+                    'langueCours' => $c->getLangueCours(),
+                    'niveauCours' => $c->getNiveauCours(),
+                    'contenuCours' => $c->getContenuCours(),
+                    'nomOriginalFichier' => $c->getNomOriginalFichier(),
+                    'typeContenu' => $c->getTypeContenu(),
+                    'statut' => $c->getStatut(),
+                    'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
+                    // Informations du médecin auteur (pour l'affichage "Par Dr. ...")
+                    'medecin' => $medecin ? [
+                        'id' => $medecin->getId(),
+                        'nom' => $utilisateur?->getNom(),
+                        'prenom' => $utilisateur?->getPrenom(),
+                    ] : null,
+                ];
+            }, $coursList);
 
             return $this->json($result);
         } catch (\Throwable $e) {
@@ -573,7 +589,7 @@ class CoursController extends AbstractController
                 $medecin = $cours->getMedecin();
                 $utilisateur = $medecin?->getUtilisateur();
 
-                // Récupération de l'email (adaptez le getter si nécessaire)
+                // Récupération de l'email
                 $emailMedecin = null;
                 if ($utilisateur) {
                     if (method_exists($utilisateur, 'getEmail')) {
@@ -794,7 +810,7 @@ class CoursController extends AbstractController
 </html>
 HTML;
 
-        // Version texte (très important pour la délivrabilité, surtout Outlook)
+        // Version texte
         $text = "Bonjour,\n\n"
               . "Nous avons le plaisir de vous informer que votre cours a été approuvé par un administrateur et est désormais visible sur la plateforme Tbibna.\n\n"
               . "Titre : {$titre}\n"

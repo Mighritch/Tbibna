@@ -17,11 +17,49 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
-#[Route('/api/medecin/activites')]
-#[IsGranted('ROLE_MEDECIN')]
 class ActiviteController extends AbstractController
 {
-    #[Route('', name: 'app_activite_index', methods: ['GET', 'POST'])]
+    // =========================================================
+    // LISTE DES ACTIVITÉS ACCEPTÉES (visible par tous les médecins)
+    // =========================================================
+    #[Route('/api/activites/accepte', name: 'activites_accepte', methods: ['GET'])]
+    #[IsGranted('ROLE_MEDECIN')]
+    public function listeAcceptees(ActiviteRepository $activiteRepository): JsonResponse
+    {
+        $activites = $activiteRepository->findBy(
+            ['statut' => 'accepte'],
+            ['createdAt' => 'DESC']
+        );
+
+        $data = array_map(function (Activite $a) {
+            $medecin = $a->getMedecin();
+            $utilisateur = $medecin?->getUtilisateur();
+
+            return [
+                'id' => $a->getId(),
+                'titre' => $a->getTitre(),
+                'description' => $a->getDescription(),
+                'instructions' => $a->getInstructions(),
+                'difficulte' => $a->getDifficulte(),
+                'duree' => $a->getDuree(),
+                'statut' => $a->getStatut(),
+                'createdAt' => $a->getCreatedAt()?->format('c'),
+                'medecin' => $medecin ? [
+                    'id' => $medecin->getId(),
+                    'nom' => $utilisateur?->getNom(),
+                    'prenom' => $utilisateur?->getPrenom(),
+                ] : null,
+            ];
+        }, $activites);
+
+        return $this->json($data);
+    }
+
+    // =========================================================
+    // ROUTES MÉDECIN (ses propres activités)
+    // =========================================================
+    #[Route('/api/medecin/activites', name: 'app_activite_index', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_MEDECIN')]
     public function index(
         Request $request,
         DocumentManager $dm,
@@ -49,18 +87,15 @@ class ActiviteController extends AbstractController
                 isset($payload['duree']) ? (int) $payload['duree'] : null
             );
             $activite->setMedecin($medecin);
-            // Statut forcé à "en_attente" — l'admin devra l'accepter
             $activite->setStatut('en_attente');
 
             $errors = $validator->validate($activite);
 
             if (count($errors) > 0) {
                 $messages = [];
-
                 foreach ($errors as $error) {
                     $messages[] = $error->getMessage();
                 }
-
                 return $this->json([
                     'message' => implode(' ', $messages)
                 ], 422);
@@ -103,7 +138,8 @@ class ActiviteController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_activite_show', methods: ['GET', 'PUT', 'DELETE'])]
+    #[Route('/api/medecin/activites/{id}', name: 'app_activite_show', methods: ['GET', 'PUT', 'DELETE'])]
+    #[IsGranted('ROLE_MEDECIN')]
     public function show(
         string $id,
         Request $request,
@@ -149,19 +185,15 @@ class ActiviteController extends AbstractController
             if (array_key_exists('titre', $payload)) {
                 $activite->setTitre($payload['titre']);
             }
-
             if (array_key_exists('description', $payload)) {
                 $activite->setDescription($payload['description']);
             }
-
             if (array_key_exists('instructions', $payload)) {
                 $activite->setInstructions($payload['instructions']);
             }
-
             if (array_key_exists('difficulte', $payload)) {
                 $activite->setDifficulte($payload['difficulte']);
             }
-
             if (array_key_exists('duree', $payload)) {
                 $activite->setDuree(
                     $payload['duree'] !== null
@@ -170,18 +202,13 @@ class ActiviteController extends AbstractController
                 );
             }
 
-            // Le médecin ne peut PAS changer le statut lui-même
-            // (seul un admin pourra le faire)
-
             $errors = $validator->validate($activite);
 
             if (count($errors) > 0) {
                 $messages = [];
-
                 foreach ($errors as $error) {
                     $messages[] = $error->getMessage();
                 }
-
                 return $this->json([
                     'message' => implode(' ', $messages)
                 ], 422);
@@ -213,7 +240,8 @@ class ActiviteController extends AbstractController
         ]);
     }
 
-    #[Route('/new', name: 'app_activite_new', methods: ['GET', 'POST'])]
+    #[Route('/api/medecin/activites/new', name: 'app_activite_new', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_MEDECIN')]
     public function new(
         Request $request,
         DocumentManager $dm,

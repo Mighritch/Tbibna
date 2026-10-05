@@ -21,6 +21,7 @@ import {
   Filter,
   Search,
   RotateCcw,
+  Users,
 } from "lucide-react";
 
 const FILES_BASE_URL = "";
@@ -111,7 +112,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
       });
 
       const text = await res.text();
-
       let data;
 
       try {
@@ -168,7 +168,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Titre du cours
             </label>
-
             <input
               type="text"
               name="titre"
@@ -183,7 +182,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Description
             </label>
-
             <textarea
               name="description"
               value={form.description}
@@ -199,7 +197,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Durée (minutes)
               </label>
-
               <input
                 type="number"
                 name="duree"
@@ -215,7 +212,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
                 Niveau
               </label>
-
               <select
                 name="niveauCours"
                 value={form.niveauCours}
@@ -224,7 +220,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
                 className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
               >
                 <option value="">Choisir...</option>
-
                 {NIVEAUX.map((n) => (
                   <option key={n} value={n}>
                     {n}
@@ -238,7 +233,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
             <label className="mb-1.5 block text-sm font-medium text-[#3C3A34]">
               Langue du cours
             </label>
-
             <select
               name="langueCours"
               value={form.langueCours}
@@ -247,7 +241,6 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
               className="w-full rounded-xl border border-[#E4DFD3] px-4 py-2.5 text-sm outline-none focus:border-[#0F3D3E]"
             >
               <option value="">Choisir...</option>
-
               {LANGUES.map((l) => (
                 <option key={l} value={l}>
                   {l}
@@ -258,8 +251,7 @@ function ModifierCoursModal({ cours, onClose, onSaved }) {
 
           <p className="text-xs text-[#5C5A54]">
             Le fichier de contenu (PDF, Word ou vidéo) ne peut pas être remplacé
-            depuis cette fenêtre. Supprimez le cours et recréez-le si besoin
-            d'en changer.
+            depuis cette fenêtre. Supprimez le cours et recréez-le si besoin d'en changer.
           </p>
 
           <div className="flex gap-3 pt-2">
@@ -300,7 +292,6 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
       });
 
       const text = await res.text();
-
       let data;
 
       try {
@@ -339,9 +330,7 @@ function SupprimerCoursModal({ cours, onClose, onDeleted }) {
 
         <p className="mb-5 text-sm text-[#5C5A54]">
           Cette action est irréversible. Le cours{" "}
-          <span className="font-semibold text-[#3C3A34]">
-            « {cours.titre} »
-          </span>{" "}
+          <span className="font-semibold text-[#3C3A34]">« {cours.titre} »</span>{" "}
           et son fichier associé seront définitivement supprimés.
         </p>
 
@@ -380,6 +369,8 @@ export default function MesCours() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [vue, setVue] = useState("mes"); // "mes" | "tous"
+
   const [coursAModifier, setCoursAModifier] = useState(null);
   const [coursASupprimer, setCoursASupprimer] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -390,13 +381,17 @@ export default function MesCours() {
 
   useEffect(() => {
     const fetchCours = async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        const res = await fetch("/api/cours/mes-cours", {
+        const url = vue === "mes" ? "/api/cours/mes-cours" : "/api/cours/public";
+
+        const res = await fetch(url, {
           credentials: "include",
         });
 
         const text = await res.text();
-
         let data;
 
         try {
@@ -410,13 +405,11 @@ export default function MesCours() {
 
         if (!res.ok) {
           throw new Error(
-            data.error ||
-              data.message ||
-              "Impossible de charger les cours."
+            data.error || data.message || "Impossible de charger les cours."
           );
         }
 
-        setCours(data);
+        setCours(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -425,13 +418,11 @@ export default function MesCours() {
     };
 
     fetchCours();
-  }, []);
+  }, [vue]);
 
   useEffect(() => {
     if (!successMessage) return;
-
     const timer = setTimeout(() => setSuccessMessage(null), 3000);
-
     return () => clearTimeout(timer);
   }, [successMessage]);
 
@@ -444,11 +435,8 @@ export default function MesCours() {
         (c.titre && c.titre.toLowerCase().includes(term)) ||
         (c.description && c.description.toLowerCase().includes(term));
 
-      const matchLangue =
-        !filtreLangue || c.langueCours === filtreLangue;
-
-      const matchNiveau =
-        !filtreNiveau || c.niveauCours === filtreNiveau;
+      const matchLangue = !filtreLangue || c.langueCours === filtreLangue;
+      const matchNiveau = !filtreNiveau || c.niveauCours === filtreNiveau;
 
       return matchSearch && matchLangue && matchNiveau;
     });
@@ -456,13 +444,8 @@ export default function MesCours() {
 
   const handleCoursModifie = (coursMisAJour) => {
     setCours((prev) =>
-      prev.map((c) =>
-        c.id === coursMisAJour.id
-          ? { ...c, ...coursMisAJour }
-          : c
-      )
+      prev.map((c) => (c.id === coursMisAJour.id ? { ...c, ...coursMisAJour } : c))
     );
-
     setCoursAModifier(null);
     setSuccessMessage("Cours modifié avec succès.");
   };
@@ -479,8 +462,7 @@ export default function MesCours() {
     setFiltreNiveau("");
   };
 
-  const hasActiveFilters =
-    searchTerm || filtreLangue || filtreNiveau;
+  const hasActiveFilters = searchTerm || filtreLangue || filtreNiveau;
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
@@ -489,22 +471,52 @@ export default function MesCours() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
-              Mes cours
+              {vue === "mes" ? "Mes cours" : "Tous les cours"}
             </h1>
-
             <p className="mt-1 text-sm text-[#5C5A54]">
-              Gérez et publiez vos cours médicaux (validation admin requise)
+              {vue === "mes"
+                ? "Gérez et publiez vos cours médicaux (validation admin requise)"
+                : "Parcourez les cours approuvés publiés par les autres médecins"}
             </p>
           </div>
 
-          {/* Bouton en blanc */}
-          <Link
-            to="/dashboard/medecin/cours/ajouter"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-md transition hover:bg-[#FBF9F4] hover:shadow-lg"
+          {vue === "mes" && (
+            <Link
+              to="/dashboard/medecin/cours/ajouter"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-md transition hover:bg-[#FBF9F4] hover:shadow-lg"
+            >
+              <Plus size={16} />
+              Ajouter un cours
+            </Link>
+          )}
+        </div>
+
+        {/* Onglets */}
+        <div className="mb-6 flex gap-2 rounded-2xl border border-[#E4DFD3] bg-white p-1.5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setVue("mes")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              vue === "mes"
+                ? "bg-[#0F3D3E] text-[#F4C95D]"
+                : "text-[#5C5A54] hover:bg-[#FBF9F4]"
+            }`}
           >
-            <Plus size={16} />
-            Ajouter un cours
-          </Link>
+            <BookOpen size={16} />
+            Mes cours
+          </button>
+          <button
+            type="button"
+            onClick={() => setVue("tous")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              vue === "tous"
+                ? "bg-[#0F3D3E] text-[#F4C95D]"
+                : "text-[#5C5A54] hover:bg-[#FBF9F4]"
+            }`}
+          >
+            <Users size={16} />
+            Tous les cours
+          </button>
         </div>
 
         {/* Notification succès */}
@@ -515,10 +527,9 @@ export default function MesCours() {
           </div>
         )}
 
-        {/* ========== BARRE DE RECHERCHE + FILTRES (DESIGN AMÉLIORÉ) ========== */}
+        {/* BARRE DE RECHERCHE + FILTRES */}
         {!loading && !error && cours.length > 0 && (
           <div className="mb-8 overflow-hidden rounded-2xl border border-[#E4DFD3] bg-white shadow-md">
-            {/* En-tête de la zone de filtres */}
             <div className="border-b border-[#E4DFD3] bg-gradient-to-r from-[#0F3D3E]/[0.04] to-transparent px-5 py-3.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -530,7 +541,7 @@ export default function MesCours() {
                       Recherche & Filtres
                     </p>
                     <p className="text-xs text-[#5C5A54]">
-                      Trouvez rapidement vos cours
+                      Trouvez rapidement des cours
                     </p>
                   </div>
                 </div>
@@ -549,7 +560,6 @@ export default function MesCours() {
             </div>
 
             <div className="space-y-5 p-5">
-              {/* Champ de recherche attractif */}
               <div className="relative group">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <Search
@@ -578,10 +588,8 @@ export default function MesCours() {
                 )}
               </div>
 
-              {/* Filtres + compteur */}
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex flex-wrap gap-4">
-                  {/* Filtre Langue */}
                   <div className="min-w-[160px] flex-1 sm:flex-none">
                     <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
                       <Globe size={12} />
@@ -601,7 +609,6 @@ export default function MesCours() {
                     </select>
                   </div>
 
-                  {/* Filtre Niveau */}
                   <div className="min-w-[160px] flex-1 sm:flex-none">
                     <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#5C5A54]">
                       <BookOpen size={12} />
@@ -622,7 +629,6 @@ export default function MesCours() {
                   </div>
                 </div>
 
-                {/* Compteur de résultats */}
                 <div className="flex items-center gap-2 self-end">
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${
@@ -640,11 +646,11 @@ export default function MesCours() {
           </div>
         )}
 
-        {/* États de chargement / erreur */}
+        {/* Etats de chargement / erreur */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 text-[#5C5A54]">
             <Loader2 className="mb-3 h-8 w-8 animate-spin text-[#0F3D3E]" />
-            <p>Chargement de vos cours...</p>
+            <p>Chargement des cours...</p>
           </div>
         )}
 
@@ -655,7 +661,7 @@ export default function MesCours() {
           </div>
         )}
 
-        {/* Aucun cours */}
+        {/* Aucun cours disponible */}
         {!loading && !error && cours.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-12 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F3D3E]/5 text-[#0F3D3E]">
@@ -663,25 +669,30 @@ export default function MesCours() {
             </div>
 
             <h2 className="text-lg font-semibold text-[#0F3D3E]">
-              Aucun cours pour le moment
+              {vue === "mes"
+                ? "Aucun cours pour le moment"
+                : "Aucun cours public disponible"}
             </h2>
 
             <p className="mt-2 text-sm text-[#5C5A54]">
-              Commencez par publier votre premier cours. Il sera visible sur la
-              plateforme après validation par un administrateur.
+              {vue === "mes"
+                ? "Commencez par publier votre premier cours. Il sera visible sur la plateforme après validation par un administrateur."
+                : "Il n'y a pas encore de cours approuvés publiés par d'autres utilisateurs."}
             </p>
 
-            <Link
-              to="/dashboard/medecin/cours/ajouter"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] transition hover:bg-[#FBF9F4]"
-            >
-              <Plus size={16} />
-              Créer mon premier cours
-            </Link>
+            {vue === "mes" && (
+              <Link
+                to="/dashboard/medecin/cours/ajouter"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] transition hover:bg-[#FBF9F4]"
+              >
+                <Plus size={16} />
+                Créer mon premier cours
+              </Link>
+            )}
           </div>
         )}
 
-        {/* Aucun résultat */}
+        {/* Aucun résultat de recherche */}
         {!loading &&
           !error &&
           cours.length > 0 &&
@@ -691,8 +702,7 @@ export default function MesCours() {
                 <Search size={22} />
               </div>
               <p className="text-sm font-medium text-[#3C3A34]">
-                Aucun cours ne correspond à votre recherche ou aux filtres
-                sélectionnés.
+                Aucun cours ne correspond à votre recherche ou aux filtres sélectionnés.
               </p>
 
               <button
@@ -727,7 +737,7 @@ export default function MesCours() {
                         {c.niveauCours}
                       </span>
 
-                      <StatutBadge statut={c.statut} />
+                      {vue === "mes" && <StatutBadge statut={c.statut} />}
                     </div>
                   </div>
 
@@ -772,7 +782,6 @@ export default function MesCours() {
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <ContenuIcon type={c.typeContenu} />
-
                         <span className="truncate">
                           {contenuLabel(c.typeContenu)}
                           {c.nomOriginalFichier
@@ -785,7 +794,7 @@ export default function MesCours() {
                     </a>
                   )}
 
-                  {c.statut !== "approuve" && (
+                  {vue === "mes" && c.statut !== "approuve" && (
                     <div className="mt-3 flex gap-2">
                       <button
                         type="button"

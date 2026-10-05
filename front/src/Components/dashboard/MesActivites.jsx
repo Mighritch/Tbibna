@@ -15,6 +15,7 @@ import {
   XCircle,
   Hourglass,
   ArrowUpDown,
+  Users,
 } from "lucide-react";
 
 export default function MesActivites() {
@@ -22,6 +23,9 @@ export default function MesActivites() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Vue : "mes" (mes activités) ou "tous" (activités acceptées de tous les médecins)
+  const [vue, setVue] = useState("mes");
 
   const [editingActivite, setEditingActivite] = useState(null);
   const [form, setForm] = useState({
@@ -36,10 +40,11 @@ export default function MesActivites() {
   const [formError, setFormError] = useState(null);
   const [viewingActivite, setViewingActivite] = useState(null);
 
-  // === TRI ===
+  // === TRI / FILTRES ===
   const [sortDifficulte, setSortDifficulte] = useState(""); // "" | "facile" | "moyen" | "difficile"
   const [sortStatut, setSortStatut] = useState(""); // "" | "en_attente" | "accepte" | "refuse"
 
+  // Chargement des activités selon la vue
   useEffect(() => {
     let cancelled = false;
 
@@ -48,7 +53,12 @@ export default function MesActivites() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/medecin/activites", {
+        const url =
+          vue === "mes"
+            ? "/api/medecin/activites"
+            : "/api/activites/accepte";
+
+        const res = await fetch(url, {
           credentials: "include",
           headers: {
             Accept: "application/json",
@@ -56,7 +66,11 @@ export default function MesActivites() {
         });
 
         if (!res.ok) {
-          throw new Error("Impossible de charger les activités");
+          throw new Error(
+            vue === "mes"
+              ? "Impossible de charger vos activités"
+              : "Impossible de charger les activités des médecins"
+          );
         }
 
         const data = await res.json();
@@ -81,7 +95,7 @@ export default function MesActivites() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [vue]);
 
   // Liste triée / filtrée
   const activitesFiltrees = useMemo(() => {
@@ -92,8 +106,8 @@ export default function MesActivites() {
       result = result.filter((a) => a.difficulte === sortDifficulte);
     }
 
-    // Filtre par statut
-    if (sortStatut) {
+    // Filtre par statut (uniquement utile en vue "mes")
+    if (sortStatut && vue === "mes") {
       result = result.filter((a) => a.statut === sortStatut);
     }
 
@@ -106,7 +120,7 @@ export default function MesActivites() {
     });
 
     return result;
-  }, [activites, sortDifficulte, sortStatut]);
+  }, [activites, sortDifficulte, sortStatut, vue]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette activité ?")) {
@@ -254,25 +268,63 @@ export default function MesActivites() {
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
-              Mes activités
+              {vue === "mes" ? "Mes activités" : "Toutes les activités"}
             </h1>
             <p className="mt-1 text-[#5C5A54]">
-              Gérez les activités que vous proposez aux étudiants. Elles ne
-              seront visibles sur la plateforme qu’après validation par un
-              administrateur.
+              {vue === "mes"
+                ? "Gérez les activités que vous proposez aux étudiants. Elles ne seront visibles sur la plateforme qu’après validation par un administrateur."
+                : "Parcourez les activités acceptées publiées par les autres médecins."}
             </p>
           </div>
 
-          <Link
-            to="/dashboard/medecin/activites/ajouter"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-3 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-gray-50 hover:shadow-md"
+          {vue === "mes" && (
+            <Link
+              to="/dashboard/medecin/activites/ajouter"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-3 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-gray-50 hover:shadow-md"
+            >
+              <Plus size={18} />
+              Ajouter une activité
+            </Link>
+          )}
+        </div>
+
+        {/* Onglets */}
+        <div className="mb-6 flex gap-2 rounded-2xl border border-[#E4DFD3] bg-white p-1.5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => {
+              setVue("mes");
+              setSortDifficulte("");
+              setSortStatut("");
+            }}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              vue === "mes"
+                ? "bg-[#0F3D3E] text-[#F4C95D]"
+                : "text-[#5C5A54] hover:bg-[#FBF9F4]"
+            }`}
           >
-            <Plus size={18} />
-            Ajouter une activité
-          </Link>
+            <BookOpen size={16} />
+            Mes activités
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setVue("tous");
+              setSortDifficulte("");
+              setSortStatut("");
+            }}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              vue === "tous"
+                ? "bg-[#0F3D3E] text-[#F4C95D]"
+                : "text-[#5C5A54] hover:bg-[#FBF9F4]"
+            }`}
+          >
+            <Users size={16} />
+            Toutes les activités
+          </button>
         </div>
 
         {/* Filtres de tri */}
@@ -298,20 +350,22 @@ export default function MesActivites() {
               </select>
             </div>
 
-            {/* Statut */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[#5C5A54]">Statut</label>
-              <select
-                value={sortStatut}
-                onChange={(e) => setSortStatut(e.target.value)}
-                className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
-              >
-                <option value="">Tous</option>
-                <option value="en_attente">En attente</option>
-                <option value="accepte">Acceptée</option>
-                <option value="refuse">Refusée</option>
-              </select>
-            </div>
+            {/* Statut (uniquement en vue "mes") */}
+            {vue === "mes" && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-[#5C5A54]">Statut</label>
+                <select
+                  value={sortStatut}
+                  onChange={(e) => setSortStatut(e.target.value)}
+                  className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+                >
+                  <option value="">Tous</option>
+                  <option value="en_attente">En attente</option>
+                  <option value="accepte">Acceptée</option>
+                  <option value="refuse">Refusée</option>
+                </select>
+              </div>
+            )}
 
             {(sortDifficulte || sortStatut) && (
               <button
@@ -342,18 +396,24 @@ export default function MesActivites() {
           <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
             <BookOpen size={40} className="mx-auto mb-4 text-[#0F3D3E]/40" />
             <h3 className="text-lg font-semibold text-[#0F3D3E]">
-              Aucune activité pour le moment
+              {vue === "mes"
+                ? "Aucune activité pour le moment"
+                : "Aucune activité acceptée pour le moment"}
             </h3>
             <p className="mt-2 text-sm text-[#5C5A54]">
-              Commencez par créer votre première activité.
+              {vue === "mes"
+                ? "Commencez par créer votre première activité."
+                : "Les activités acceptées par l’administrateur apparaîtront ici."}
             </p>
-            <Link
-              to="/dashboard/medecin/activites/ajouter"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-gray-50"
-            >
-              <Plus size={16} />
-              Créer une activité
-            </Link>
+            {vue === "mes" && (
+              <Link
+                to="/dashboard/medecin/activites/ajouter"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-gray-50"
+              >
+                <Plus size={16} />
+                Créer une activité
+              </Link>
+            )}
           </div>
         ) : activitesFiltrees.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
@@ -376,8 +436,15 @@ export default function MesActivites() {
                   <h2 className="line-clamp-2 text-lg font-semibold text-[#0F3D3E]">
                     {act.titre}
                   </h2>
-                  {getStatutBadge(act.statut)}
+                  {vue === "mes" && getStatutBadge(act.statut)}
                 </div>
+
+                {/* Affichage du médecin auteur en vue "tous" */}
+                {vue === "tous" && act.medecin && (
+                  <p className="mt-1 text-xs font-medium text-[#0F3D3E]/70">
+                    Par Dr. {act.medecin.prenom} {act.medecin.nom}
+                  </p>
+                )}
 
                 <p className="mt-3 line-clamp-3 text-sm text-[#5C5A54]">
                   {act.description}
@@ -404,28 +471,33 @@ export default function MesActivites() {
                     Voir instructions
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(act)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
-                  >
-                    <Pencil size={16} />
-                    Modifier
-                  </button>
+                  {/* Boutons Modifier / Supprimer uniquement en vue "mes" */}
+                  {vue === "mes" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(act)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                      >
+                        <Pencil size={16} />
+                        Modifier
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(act.id)}
-                    disabled={deletingId === act.id}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
-                  >
-                    {deletingId === act.id ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-700 border-t-transparent" />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                    Supprimer
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(act.id)}
+                        disabled={deletingId === act.id}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+                      >
+                        {deletingId === act.id ? (
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-700 border-t-transparent" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
+                        Supprimer
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -455,8 +527,16 @@ export default function MesActivites() {
                 <h3 className="text-lg font-semibold text-[#0F3D3E]">
                   {viewingActivite.titre}
                 </h3>
-                {getStatutBadge(viewingActivite.statut)}
+                {vue === "mes" && getStatutBadge(viewingActivite.statut)}
               </div>
+
+              {/* Auteur en vue "tous" */}
+              {vue === "tous" && viewingActivite.medecin && (
+                <p className="text-sm font-medium text-[#0F3D3E]/80">
+                  Publié par Dr. {viewingActivite.medecin.prenom}{" "}
+                  {viewingActivite.medecin.nom}
+                </p>
+              )}
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-[#737873]">
                 <span className="flex items-center gap-1.5">
@@ -469,7 +549,7 @@ export default function MesActivites() {
                 </span>
               </div>
 
-              {viewingActivite.statut === "en_attente" && (
+              {vue === "mes" && viewingActivite.statut === "en_attente" && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   Cette activité est en attente de validation par un
                   administrateur. Elle n’est pas encore visible sur la
@@ -477,7 +557,7 @@ export default function MesActivites() {
                 </div>
               )}
 
-              {viewingActivite.statut === "refuse" && (
+              {vue === "mes" && viewingActivite.statut === "refuse" && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
                   Cette activité a été refusée par un administrateur.
                 </div>
@@ -515,7 +595,7 @@ export default function MesActivites() {
         </div>
       )}
 
-      {/* Modal édition */}
+      {/* Modal édition (uniquement utile en vue "mes") */}
       {editingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
