@@ -60,10 +60,15 @@ class Activite
     #[ODM\Field(type: "collection")]
     private array $favoris = [];
 
+    #[ODM\Field(type: "collection")]
+    private array $participants = [];
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
         $this->statut = 'en_attente';
+        $this->favoris = [];
+        $this->participants = [];
     }
 
     public function getId(): ?string
@@ -153,9 +158,10 @@ class Activite
         return $this->createdAt;
     }
 
+    // ========== FAVORIS (null-safe) ==========
     public function getFavoris(): array
     {
-        return $this->favoris;
+        return $this->favoris ?? [];
     }
 
     public function setFavoris(array $favoris): self
@@ -166,8 +172,10 @@ class Activite
 
     public function addFavori(string $etudiantId): self
     {
-        if (!in_array($etudiantId, $this->favoris, true)) {
-            $this->favoris[] = $etudiantId;
+        $favoris = $this->getFavoris();
+        if (!in_array($etudiantId, $favoris, true)) {
+            $favoris[] = $etudiantId;
+            $this->favoris = $favoris;
         }
         return $this;
     }
@@ -175,7 +183,7 @@ class Activite
     public function removeFavori(string $etudiantId): self
     {
         $this->favoris = array_values(array_filter(
-            $this->favoris,
+            $this->getFavoris(),
             fn($id) => $id !== $etudiantId
         ));
         return $this;
@@ -183,6 +191,42 @@ class Activite
 
     public function isFavoriPar(string $etudiantId): bool
     {
-        return in_array($etudiantId, $this->favoris, true);
+        return in_array($etudiantId, $this->getFavoris(), true);
+    }
+
+    // ========== PARTICIPANTS (null-safe) ==========
+    public function getParticipants(): array
+    {
+        return $this->participants ?? [];
+    }
+
+    public function setParticipants(array $participants): self
+    {
+        $this->participants = $participants;
+        return $this;
+    }
+
+    public function addParticipant(string $etudiantId): self
+    {
+        $participants = $this->getParticipants();
+        if (!in_array($etudiantId, $participants, true)) {
+            $participants[] = $etudiantId;
+            $this->participants = $participants;
+        }
+        return $this;
+    }
+
+    public function removeParticipant(string $etudiantId): self
+    {
+        $this->participants = array_values(array_filter(
+            $this->getParticipants(),
+            fn($id) => $id !== $etudiantId
+        ));
+        return $this;
+    }
+
+    public function isParticipant(string $etudiantId): bool
+    {
+        return in_array($etudiantId, $this->getParticipants(), true);
     }
 }

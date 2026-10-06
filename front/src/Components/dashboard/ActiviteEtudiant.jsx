@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   FileText,
   Heart,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
 
 const ITEMS_PER_PAGE = 3;
@@ -55,7 +57,7 @@ function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
             className={`h-9 min-w-9 rounded-xl px-3 text-sm font-medium transition ${
               p === currentPage
                 ? "bg-[#0F3D3E] text-white"
-                : "border border-[#E4DFDF3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+                : "border border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
             }`}
           >
             {p}
@@ -93,6 +95,7 @@ export default function ActivitesEtudiant() {
   const [submitSuccess, setSubmitSuccess] = useState(null);
 
   const [togglingFavori, setTogglingFavori] = useState(null);
+  const [togglingParticiper, setTogglingParticiper] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,9 +145,7 @@ export default function ActivitesEtudiant() {
     let result = [...activites];
 
     if (sortDifficulte) {
-      result = result.filter(
-        (a) => a.difficulte === sortDifficulte
-      );
+      result = result.filter((a) => a.difficulte === sortDifficulte);
     }
 
     if (filterFavoris) {
@@ -232,23 +233,19 @@ export default function ActivitesEtudiant() {
     try {
       const method = act.isFavori ? "DELETE" : "POST";
 
-      const res = await fetch(
-        `/api/etudiant/activites/${act.id}/favori`,
-        {
-          method,
-          credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
+      const res = await fetch(`/api/etudiant/activites/${act.id}/favori`, {
+        method,
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
 
       const data = await res.json();
 
       if (!res.ok) {
         throw new Error(
-          data.message ||
-            "Erreur lors de la mise à jour des favoris"
+          data.message || "Erreur lors de la mise à jour des favoris"
         );
       }
 
@@ -279,10 +276,74 @@ export default function ActivitesEtudiant() {
     }
   };
 
+  const handleToggleParticiper = async (act, e) => {
+    e?.stopPropagation();
+
+    if (togglingParticiper) return;
+
+    setTogglingParticiper(act.id);
+
+    try {
+      const method = act.isParticipant ? "DELETE" : "POST";
+
+      const res = await fetch(
+        `/api/etudiant/activites/${act.id}/participer`,
+        {
+          method,
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          data.message || "Erreur lors de la participation"
+        );
+      }
+
+      setActivites((prev) =>
+        prev.map((a) =>
+          a.id === act.id
+            ? {
+                ...a,
+                isParticipant: data.isParticipant,
+              }
+            : a
+        )
+      );
+
+      setViewingActivite((prev) =>
+        prev && prev.id === act.id
+          ? {
+              ...prev,
+              isParticipant: data.isParticipant,
+            }
+          : prev
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Une erreur est survenue");
+    } finally {
+      setTogglingParticiper(null);
+    }
+  };
+
   const handleSubmitTravail = async (e) => {
     e.preventDefault();
 
     if (!viewingActivite) return;
+
+    // Double sécurité côté front
+    if (!viewingActivite.isParticipant) {
+      setSubmitError(
+        "Vous devez d'abord rejoindre cette activité avant de pouvoir soumettre votre travail."
+      );
+      return;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
@@ -300,8 +361,7 @@ export default function ActivitesEtudiant() {
           },
           body: JSON.stringify({
             contenu: contenuTravail,
-            commentaireEtudiant:
-              commentaireEtudiant || null,
+            commentaireEtudiant: commentaireEtudiant || null,
           }),
         }
       );
@@ -309,9 +369,7 @@ export default function ActivitesEtudiant() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(
-          data.message || "Erreur lors de la soumission"
-        );
+        throw new Error(data.message || "Erreur lors de la soumission");
       }
 
       setSubmitSuccess(
@@ -322,8 +380,7 @@ export default function ActivitesEtudiant() {
       const nouvelleSoumission = {
         id: data.id,
         contenu: contenuTravail,
-        commentaireEtudiant:
-          commentaireEtudiant || null,
+        commentaireEtudiant: commentaireEtudiant || null,
         statut: data.statut || "realise",
         note: null,
         commentaireMedecin: null,
@@ -354,9 +411,7 @@ export default function ActivitesEtudiant() {
     } catch (err) {
       console.error(err);
 
-      setSubmitError(
-        err.message || "Une erreur est survenue"
-      );
+      setSubmitError(err.message || "Une erreur est survenue");
     } finally {
       setSubmitting(false);
     }
@@ -371,70 +426,61 @@ export default function ActivitesEtudiant() {
           </h1>
 
           <p className="mt-1 text-[#5C5A54]">
-            Découvrez les activités proposées par les médecins et
-            validées par l’administration.
+            Découvrez les activités proposées par les médecins et validées par
+            l’administration. Rejoignez une activité pour pouvoir y soumettre
+            votre travail.
           </p>
         </div>
 
-        {!loading &&
-          !error &&
-          activites.length > 0 && (
-            <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
-                <ArrowUpDown size={16} />
-                Trier / Filtrer :
-              </div>
+        {!loading && !error && activites.length > 0 && (
+          <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
+              <ArrowUpDown size={16} />
+              Trier / Filtrer :
+            </div>
 
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-[#5C5A54]">
-                  Difficulté
-                </label>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#5C5A54]">Difficulté</label>
 
-                <select
-                  value={sortDifficulte}
-                  onChange={handleDifficulteChange}
-                  className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
-                >
-                  <option value="">Toutes</option>
-                  <option value="facile">Facile</option>
-                  <option value="moyen">Moyen</option>
-                  <option value="difficile">
-                    Difficile
-                  </option>
-                </select>
-              </div>
+              <select
+                value={sortDifficulte}
+                onChange={handleDifficulteChange}
+                className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
+              >
+                <option value="">Toutes</option>
+                <option value="facile">Facile</option>
+                <option value="moyen">Moyen</option>
+                <option value="difficile">Difficile</option>
+              </select>
+            </div>
 
+            <button
+              type="button"
+              onClick={handleToggleFilterFavoris}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                filterFavoris
+                  ? "border-rose-300 bg-rose-50 text-rose-700"
+                  : "border-[#E4DFD3] bg-[#FAF8F5] text-[#0F3D3E] hover:bg-white"
+              }`}
+            >
+              <Heart
+                size={14}
+                className={filterFavoris ? "fill-rose-500 text-rose-500" : ""}
+              />
+              Favoris uniquement
+            </button>
+
+            {(sortDifficulte || filterFavoris) && (
               <button
                 type="button"
-                onClick={handleToggleFilterFavoris}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                  filterFavoris
-                    ? "border-rose-300 bg-rose-50 text-rose-700"
-                    : "border-[#E4DFD3] bg-[#FAF8F5] text-[#0F3D3E] hover:bg-white"
-                }`}
+                onClick={handleResetFilters}
+                className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
               >
-                <Heart
-                  size={14}
-                  className={
-                    filterFavoris
-                      ? "fill-rose-500 text-rose-500"
-                      : ""
-                  }
-                />
-                Favoris uniquement
+                Réinitialiser
               </button>
-
-              {(sortDifficulte || filterFavoris) && (
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
-                >
-                  Réinitialiser
-                </button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-20">
@@ -447,34 +493,26 @@ export default function ActivitesEtudiant() {
           </div>
         ) : activites.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
-            <BookOpen
-              size={40}
-              className="mx-auto mb-4 text-[#0F3D3E]/40"
-            />
+            <BookOpen size={40} className="mx-auto mb-4 text-[#0F3D3E]/40" />
 
             <h3 className="text-lg font-semibold text-[#0F3D3E]">
               Aucune activité disponible
             </h3>
 
             <p className="mt-2 text-sm text-[#5C5A54]">
-              Les activités validées par l’administration
-              apparaîtront ici.
+              Les activités validées par l’administration apparaîtront ici.
             </p>
           </div>
         ) : activitesFiltrees.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white py-16 text-center">
-            <BookOpen
-              size={40}
-              className="mx-auto mb-4 text-[#0F3D3E]/40"
-            />
+            <BookOpen size={40} className="mx-auto mb-4 text-[#0F3D3E]/40" />
 
             <h3 className="text-lg font-semibold text-[#0F3D3E]">
               Aucune activité ne correspond au filtre
             </h3>
 
             <p className="mt-2 text-sm text-[#5C5A54]">
-              Essayez une autre difficulté ou réinitialisez
-              le filtre.
+              Essayez une autre difficulté ou réinitialisez le filtre.
             </p>
           </div>
         ) : (
@@ -498,14 +536,17 @@ export default function ActivitesEtudiant() {
                         </span>
                       )}
 
+                      {act.isParticipant && !act.aDejaSoumis && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
+                          <UserPlus size={12} />
+                          Inscrit
+                        </span>
+                      )}
+
                       <button
                         type="button"
-                        onClick={(e) =>
-                          handleToggleFavori(act, e)
-                        }
-                        disabled={
-                          togglingFavori === act.id
-                        }
+                        onClick={(e) => handleToggleFavori(act, e)}
+                        disabled={togglingFavori === act.id}
                         className={`rounded-full p-1.5 transition ${
                           act.isFavori
                             ? "text-rose-500 hover:bg-rose-50"
@@ -519,11 +560,7 @@ export default function ActivitesEtudiant() {
                       >
                         <Heart
                           size={18}
-                          className={
-                            act.isFavori
-                              ? "fill-current"
-                              : ""
-                          }
+                          className={act.isFavori ? "fill-current" : ""}
                         />
                       </button>
                     </div>
@@ -535,9 +572,7 @@ export default function ActivitesEtudiant() {
 
                   <div className="mt-4 flex items-center gap-2 text-xs text-[#737873]">
                     <User size={14} />
-                    <span>
-                      {act.medecinNom || "Médecin"}
-                    </span>
+                    <span>{act.medecinNom || "Médecin"}</span>
                   </div>
 
                   <div className="mt-4 flex items-center gap-4 text-xs text-[#737873]">
@@ -555,9 +590,7 @@ export default function ActivitesEtudiant() {
                   <div className="mt-6 border-t border-[#E4DFD3] pt-4">
                     <button
                       type="button"
-                      onClick={() =>
-                        openViewModal(act)
-                      }
+                      onClick={() => openViewModal(act)}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
                     >
                       <Eye size={16} />
@@ -592,16 +625,8 @@ export default function ActivitesEtudiant() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={(e) =>
-                    handleToggleFavori(
-                      viewingActivite,
-                      e
-                    )
-                  }
-                  disabled={
-                    togglingFavori ===
-                    viewingActivite.id
-                  }
+                  onClick={(e) => handleToggleFavori(viewingActivite, e)}
+                  disabled={togglingFavori === viewingActivite.id}
                   className={`rounded-lg p-1.5 transition ${
                     viewingActivite.isFavori
                       ? "text-rose-500 hover:bg-rose-50"
@@ -615,11 +640,7 @@ export default function ActivitesEtudiant() {
                 >
                   <Heart
                     size={20}
-                    className={
-                      viewingActivite.isFavori
-                        ? "fill-current"
-                        : ""
-                    }
+                    className={viewingActivite.isFavori ? "fill-current" : ""}
                   />
                 </button>
 
@@ -641,10 +662,7 @@ export default function ActivitesEtudiant() {
 
                 <div className="mt-2 flex items-center gap-2 text-sm text-[#737873]">
                   <User size={15} />
-                  <span>
-                    {viewingActivite.medecinNom ||
-                      "Médecin"}
-                  </span>
+                  <span>{viewingActivite.medecinNom || "Médecin"}</span>
                 </div>
               </div>
 
@@ -666,8 +684,7 @@ export default function ActivitesEtudiant() {
                 </h4>
 
                 <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                  {viewingActivite.description ||
-                    "—"}
+                  {viewingActivite.description || "—"}
                 </p>
               </div>
 
@@ -677,10 +694,49 @@ export default function ActivitesEtudiant() {
                 </h4>
 
                 <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                  {viewingActivite.instructions ||
-                    "—"}
+                  {viewingActivite.instructions || "—"}
                 </p>
               </div>
+
+              {/* === BOUTON REJOINDRE / QUITTER === */}
+              {!viewingActivite.aDejaSoumis && (
+                <div className="border-t border-[#E4DFD3] pt-6">
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleParticiper(viewingActivite, e)}
+                    disabled={togglingParticiper === viewingActivite.id}
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${
+                      viewingActivite.isParticipant
+                        ? "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                        : "bg-[#0F3D3E] text-white hover:bg-[#082829]"
+                    }`}
+                  >
+                    {togglingParticiper === viewingActivite.id ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Traitement...
+                      </>
+                    ) : viewingActivite.isParticipant ? (
+                      <>
+                        <UserMinus size={16} />
+                        Quitter l’activité
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} />
+                        Rejoindre l’activité
+                      </>
+                    )}
+                  </button>
+
+                  {!viewingActivite.isParticipant && (
+                    <p className="mt-2 text-center text-xs text-[#5C5A54]">
+                      Vous devez rejoindre l’activité pour pouvoir soumettre
+                      votre travail.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="border-t border-[#E4DFD3] pt-6">
                 <h4 className="mb-4 flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
@@ -688,8 +744,7 @@ export default function ActivitesEtudiant() {
                   Mon travail
                 </h4>
 
-                {viewingActivite.aDejaSoumis &&
-                viewingActivite.soumission ? (
+                {viewingActivite.aDejaSoumis && viewingActivite.soumission ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                       <CheckCircle2 size={18} />
@@ -697,18 +752,14 @@ export default function ActivitesEtudiant() {
                       <span>
                         Activité réalisée le{" "}
                         {new Date(
-                          viewingActivite
-                            .soumission.createdAt
-                        ).toLocaleDateString(
-                          "fr-FR",
-                          {
-                            day: "2-digit",
-                            month: "long",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
+                          viewingActivite.soumission.createdAt
+                        ).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
                     </div>
 
@@ -718,75 +769,47 @@ export default function ActivitesEtudiant() {
                       </p>
 
                       <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                        {
-                          viewingActivite.soumission
-                            .contenu
-                        }
+                        {viewingActivite.soumission.contenu}
                       </p>
                     </div>
 
-                    {viewingActivite.soumission
-                      .commentaireEtudiant && (
+                    {viewingActivite.soumission.commentaireEtudiant && (
                       <div>
                         <p className="mb-1 text-xs font-medium text-[#5C5A54]">
                           Votre commentaire
                         </p>
 
                         <p className="whitespace-pre-wrap rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#5C5A54]">
-                          {
-                            viewingActivite
-                              .soumission
-                              .commentaireEtudiant
-                          }
+                          {viewingActivite.soumission.commentaireEtudiant}
                         </p>
                       </div>
                     )}
 
-                    {viewingActivite.soumission
-                      .note !== null && (
+                    {viewingActivite.soumission.note !== null && (
                       <div className="rounded-xl border border-[#E4DFD3] bg-white px-4 py-3">
                         <p className="text-sm font-medium text-[#0F3D3E]">
-                          Note :{" "}
-                          {
-                            viewingActivite
-                              .soumission.note
-                          }
-                          /20
+                          Note : {viewingActivite.soumission.note}/20
                         </p>
 
-                        {viewingActivite.soumission
-                          .commentaireMedecin && (
+                        {viewingActivite.soumission.commentaireMedecin && (
                           <p className="mt-1 text-sm text-[#5C5A54]">
-                            {
-                              viewingActivite
-                                .soumission
-                                .commentaireMedecin
-                            }
+                            {viewingActivite.soumission.commentaireMedecin}
                           </p>
                         )}
                       </div>
                     )}
                   </div>
-                ) : (
-                  <form
-                    onSubmit={handleSubmitTravail}
-                    className="space-y-4"
-                  >
+                ) : viewingActivite.isParticipant ? (
+                  <form onSubmit={handleSubmitTravail} className="space-y-4">
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-[#5C5A54]">
                         Votre travail{" "}
-                        <span className="text-rose-500">
-                          *
-                        </span>
+                        <span className="text-rose-500">*</span>
                       </label>
 
                       <textarea
                         value={contenuTravail}
-                        onChange={(e) =>
-                          setContenuTravail(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => setContenuTravail(e.target.value)}
                         required
                         rows={6}
                         placeholder="Rédigez ici votre réponse / rapport / analyse selon les instructions..."
@@ -800,14 +823,8 @@ export default function ActivitesEtudiant() {
                       </label>
 
                       <textarea
-                        value={
-                          commentaireEtudiant
-                        }
-                        onChange={(e) =>
-                          setCommentaireEtudiant(
-                            e.target.value
-                          )
-                        }
+                        value={commentaireEtudiant}
+                        onChange={(e) => setCommentaireEtudiant(e.target.value)}
                         rows={2}
                         placeholder="Ajoutez un commentaire si nécessaire..."
                         className="w-full rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-4 py-3 text-sm text-[#0F3D3E] outline-none transition focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
@@ -830,10 +847,7 @@ export default function ActivitesEtudiant() {
 
                     <button
                       type="submit"
-                      disabled={
-                        submitting ||
-                        !contenuTravail.trim()
-                      }
+                      disabled={submitting || !contenuTravail.trim()}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#082829] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {submitting ? (
@@ -849,6 +863,16 @@ export default function ActivitesEtudiant() {
                       )}
                     </button>
                   </form>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+                    <p className="font-medium">
+                      Vous n’êtes pas encore inscrit à cette activité.
+                    </p>
+                    <p className="mt-1">
+                      Cliquez sur « Rejoindre l’activité » ci-dessus pour
+                      pouvoir soumettre votre travail.
+                    </p>
+                  </div>
                 )}
               </div>
             </div>

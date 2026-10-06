@@ -2,20 +2,24 @@
 
 namespace App\Document;
 
+use App\Repository\SoumissionActiviteRepository;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
 use Symfony\Component\Validator\Constraints as Assert;
 
-#[ODM\Document(collection: 'soumissions_activite')]
+#[ODM\Document(
+    collection: 'soumissions_activite',
+    repositoryClass: SoumissionActiviteRepository::class
+)]
 class SoumissionActivite
 {
     #[ODM\Id]
     private ?string $id = null;
 
-    #[ODM\ReferenceOne(targetDocument: Activite::class)]
+    #[ODM\ReferenceOne(targetDocument: Activite::class, storeAs: 'id')]
     #[Assert\NotNull]
     private ?Activite $activite = null;
 
-    #[ODM\ReferenceOne(targetDocument: Etudiant::class)]
+    #[ODM\ReferenceOne(targetDocument: Etudiant::class, storeAs: 'id')]
     #[Assert\NotNull]
     private ?Etudiant $etudiant = null;
 
@@ -28,7 +32,7 @@ class SoumissionActivite
     private ?string $commentaireEtudiant = null;
 
     #[ODM\Field(type: 'string')]
-    private string $statut = 'realise';   // ← modifié : par défaut "réalisé"
+    private string $statut = 'realise';
 
     #[ODM\Field(type: 'float', nullable: true)]
     private ?float $note = null;

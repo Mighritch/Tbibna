@@ -8,10 +8,11 @@ use App\Document\SoumissionActivite;
 use App\Document\User;
 use App\Repository\ActiviteRepository;
 use App\Repository\EtudiantRepository;
+use App\Repository\SoumissionActiviteRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -20,90 +21,94 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 #[IsGranted('ROLE_ETUDIANT')]
 class EtudiantActiviteController extends AbstractController
 {
-    #[Route('', name: 'app_etudiant_activite_index', methods: ['GET'])]
-    public function index(
+    // =========================================================
+    // LISTE DES ACTIVITÉS ACCEPTÉES (avec isFavori + isParticipant + soumission)
+    // =========================================================
+    #[Route('', name: 'etudiant_activites_list', methods: ['GET'])]
+    public function list(
         ActiviteRepository $activiteRepository,
         EtudiantRepository $etudiantRepository,
-        DocumentManager $dm
-    ): Response {
+        SoumissionActiviteRepository $soumissionRepository
+    ): JsonResponse {
         $etudiant = $this->getEtudiantConnecte($etudiantRepository);
-        $soumissionRepository = $dm->getRepository(SoumissionActivite::class);
+        $etudiantId = $etudiant->getId();
 
         $activites = $activiteRepository->findBy(
             ['statut' => 'accepte'],
             ['createdAt' => 'DESC']
         );
 
-        $data = array_map(function (Activite $activite) use ($etudiant, $soumissionRepository) {
-            $medecin = $activite->getMedecin();
-            $medecinNom = null;
+        $data = array_map(function (Activite $a) use ($etudiantId, $soumissionRepository, $etudiant) {
+            $medecin = $a->getMedecin();
+            $utilisateur = $medecin?->getUtilisateur();
 
-            if ($medecin) {
-                if (method_exists($medecin, 'getUser')) {
-                    $user = $medecin->getUser();
-                    if ($user) {
-                        $prenom = method_exists($user, 'getPrenom') ? ($user->getPrenom() ?? '') : '';
-                        $nom    = method_exists($user, 'getNom')    ? ($user->getNom() ?? '')    : '';
-                        $medecinNom = trim($prenom . ' ' . $nom);
-                    }
-                }
-
-                if (!$medecinNom && method_exists($medecin, 'getUtilisateur')) {
-                    $user = $medecin->getUtilisateur();
-                    if ($user) {
-                        $prenom = method_exists($user, 'getPrenom') ? ($user->getPrenom() ?? '') : '';
-                        $nom    = method_exists($user, 'getNom')    ? ($user->getNom() ?? '')    : '';
-                        $medecinNom = trim($prenom . ' ' . $nom);
-                    }
-                }
-
-                if (!$medecinNom && method_exists($medecin, 'getId')) {
-                    $medecinNom = (string) $medecin->getId();
-                }
+            $medecinNom = 'Médecin';
+            if ($utilisateur) {
+                $prenom = method_exists($utilisateur, 'getPrenom') ? ($utilisateur->getPrenom() ?? '') : '';
+                $nom    = method_exists($utilisateur, 'getNom')    ? ($utilisateur->getNom() ?? '')    : '';
+                $medecinNom = trim($prenom . ' ' . $nom) ?: 'Médecin';
             }
 
+            // Recherche soumission (essaie d'abord avec objets, puis avec IDs)
             $soumission = $soumissionRepository->findOneBy([
-                'activite' => $activite,
+                'activite' => $a,
                 'etudiant' => $etudiant,
             ]);
 
-            return [
-                'id'           => $activite->getId(),
-                'titre'        => $activite->getTitre(),
-                'description'  => $activite->getDescription(),
-                'instructions' => $activite->getInstructions(),
-                'difficulte'   => $activite->getDifficulte(),
-                'duree'        => $activite->getDuree(),
-                'statut'       => $activite->getStatut(),
-                'createdAt'    => $activite->getCreatedAt()?->format('c'),
-                'medecinNom'   => $medecinNom ?: 'Médecin',
-                'aDejaSoumis'  => $soumission !== null,
-                'isFavori'     => $activite->isFavoriPar($etudiant->getId()),
-                'soumission'   => $soumission ? [
+            if (!$soumission) {
+                $soumission = $soumissionRepository->findOneBy([
+                    'activite' => $a->getId(),
+                    'etudiant' => $etudiantId,
+                ]);
+            }
+
+            $soumissionData = null;
+            if ($soumission) {
+                $soumissionData = [
                     'id'                  => $soumission->getId(),
                     'contenu'             => $soumission->getContenu(),
                     'commentaireEtudiant' => $soumission->getCommentaireEtudiant(),
                     'statut'              => $soumission->getStatut(),
                     'note'                => $soumission->getNote(),
                     'commentaireMedecin'  => $soumission->getCommentaireMedecin(),
-                    'createdAt'           => $soumission->getCreatedAt()->format('c'),
-                ] : null,
+                    'createdAt'           => $soumission->getCreatedAt()?->format('c'),
+                ];
+            }
+
+            return [
+                'id'            => $a->getId(),
+                'titre'         => $a->getTitre(),
+                'description'   => $a->getDescription(),
+                'instructions'  => $a->getInstructions(),
+                'difficulte'    => $a->getDifficulte(),
+                'duree'         => $a->getDuree(),
+                'statut'        => $a->getStatut(),
+                'createdAt'     => $a->getCreatedAt()?->format('c'),
+                'medecinNom'    => $medecinNom,
+                'isFavori'      => $a->isFavoriPar($etudiantId),
+                'isParticipant' => $a->isParticipant($etudiantId),
+                'aDejaSoumis'   => $soumission !== null,
+                'soumission'    => $soumissionData,
             ];
         }, $activites);
 
         return $this->json($data);
     }
 
-    // ==================== FAVORIS ====================
-    #[Route('/{id}/favori', name: 'app_etudiant_activite_favori', methods: ['POST', 'DELETE'])]
-    public function toggleFavori(
+    // =========================================================
+    // REJOINDRE / QUITTER UNE ACTIVITÉ
+    // =========================================================
+    #[Route('/{id}/participer', name: 'etudiant_activite_participer', methods: ['POST', 'DELETE'])]
+    public function participer(
         string $id,
         Request $request,
-        DocumentManager $dm,
         ActiviteRepository $activiteRepository,
-        EtudiantRepository $etudiantRepository
-    ): Response {
+        EtudiantRepository $etudiantRepository,
+        DocumentManager $dm
+    ): JsonResponse {
         $etudiant = $this->getEtudiantConnecte($etudiantRepository);
+        $etudiantId = $etudiant->getId();
+
         $activite = $activiteRepository->find($id);
 
         if (!$activite) {
@@ -114,40 +119,84 @@ class EtudiantActiviteController extends AbstractController
             return $this->json(['message' => 'Cette activité n\'est pas encore disponible.'], 403);
         }
 
+        if ($request->isMethod('POST')) {
+            $activite->addParticipant($etudiantId);
+            $dm->flush();
+
+            return $this->json([
+                'message' => 'Vous avez rejoint l\'activité.',
+                'isParticipant' => true,
+            ]);
+        }
+
+        // DELETE = quitter
+        // On empêche de quitter si l'étudiant a déjà soumis
+        $soumissionExistante = $dm->getRepository(SoumissionActivite::class)->findOneBy([
+            'activite' => $activite,
+            'etudiant' => $etudiant,
+        ]);
+
+        if ($soumissionExistante) {
+            return $this->json([
+                'message' => 'Vous ne pouvez pas quitter une activité après avoir soumis votre travail.'
+            ], 403);
+        }
+
+        $activite->removeParticipant($etudiantId);
+        $dm->flush();
+
+        return $this->json([
+            'message' => 'Vous avez quitté l\'activité.',
+            'isParticipant' => false,
+        ]);
+    }
+
+    // =========================================================
+    // FAVORIS (existant)
+    // =========================================================
+    #[Route('/{id}/favori', name: 'etudiant_activite_favori', methods: ['POST', 'DELETE'])]
+    public function favori(
+        string $id,
+        Request $request,
+        ActiviteRepository $activiteRepository,
+        EtudiantRepository $etudiantRepository,
+        DocumentManager $dm
+    ): JsonResponse {
+        $etudiant = $this->getEtudiantConnecte($etudiantRepository);
         $etudiantId = $etudiant->getId();
+
+        $activite = $activiteRepository->find($id);
+
+        if (!$activite) {
+            return $this->json(['message' => 'Activité introuvable.'], 404);
+        }
 
         if ($request->isMethod('POST')) {
             $activite->addFavori($etudiantId);
             $dm->flush();
-
-            return $this->json([
-                'message'  => 'Activité ajoutée aux favoris.',
-                'isFavori' => true,
-            ]);
+            return $this->json(['isFavori' => true]);
         }
 
-        // DELETE
         $activite->removeFavori($etudiantId);
         $dm->flush();
-
-        return $this->json([
-            'message'  => 'Activité retirée des favoris.',
-            'isFavori' => false,
-        ]);
+        return $this->json(['isFavori' => false]);
     }
 
-    // ==================== SOUMISSION ====================
-    #[Route('/{id}/soumettre', name: 'app_etudiant_activite_soumettre', methods: ['POST'])]
+    // =========================================================
+    // SOUMISSION DU TRAVAIL (avec contrôle de participation)
+    // =========================================================
+    #[Route('/{id}/soumettre', name: 'etudiant_activite_soumettre', methods: ['POST'])]
     public function soumettre(
         string $id,
         Request $request,
-        DocumentManager $dm,
         ActiviteRepository $activiteRepository,
         EtudiantRepository $etudiantRepository,
+        SoumissionActiviteRepository $soumissionRepository,
+        DocumentManager $dm,
         ValidatorInterface $validator
-    ): Response {
+    ): JsonResponse {
         $etudiant = $this->getEtudiantConnecte($etudiantRepository);
-        $soumissionRepository = $dm->getRepository(SoumissionActivite::class);
+        $etudiantId = $etudiant->getId();
 
         $activite = $activiteRepository->find($id);
 
@@ -156,9 +205,17 @@ class EtudiantActiviteController extends AbstractController
         }
 
         if ($activite->getStatut() !== 'accepte') {
-            return $this->json(['message' => 'Cette activité n\'est pas encore disponible.'], 403);
+            return $this->json(['message' => 'Cette activité n\'est pas disponible.'], 403);
         }
 
+        // === CONTRÔLE PRINCIPAL ===
+        if (!$activite->isParticipant($etudiantId)) {
+            return $this->json([
+                'message' => 'Vous devez d\'abord rejoindre cette activité avant de pouvoir soumettre votre travail.'
+            ], 403);
+        }
+
+        // Vérifier qu'il n'a pas déjà soumis
         $existante = $soumissionRepository->findOneBy([
             'activite' => $activite,
             'etudiant' => $etudiant,
@@ -166,7 +223,7 @@ class EtudiantActiviteController extends AbstractController
 
         if ($existante) {
             return $this->json([
-                'message' => 'Vous avez déjà soumis un travail pour cette activité. Vous ne pouvez pas le modifier pour le moment.'
+                'message' => 'Vous avez déjà soumis un travail pour cette activité.'
             ], 409);
         }
 
@@ -181,7 +238,7 @@ class EtudiantActiviteController extends AbstractController
         $soumission->setEtudiant($etudiant);
         $soumission->setContenu($payload['contenu'] ?? null);
         $soumission->setCommentaireEtudiant($payload['commentaireEtudiant'] ?? null);
-        $soumission->setStatut('realise');   // ← modifié : activité marquée comme réalisée
+        $soumission->setStatut('realise');
 
         $errors = $validator->validate($soumission);
 
@@ -197,9 +254,9 @@ class EtudiantActiviteController extends AbstractController
         $dm->flush();
 
         return $this->json([
-            'id'      => $soumission->getId(),
-            'message' => 'Votre travail a été soumis avec succès. L\'activité est maintenant marquée comme réalisée.',
-            'statut'  => $soumission->getStatut(),
+            'id' => $soumission->getId(),
+            'message' => 'Travail soumis avec succès ! L\'activité est maintenant réalisée.',
+            'statut' => $soumission->getStatut(),
         ], 201);
     }
 
@@ -214,12 +271,6 @@ class EtudiantActiviteController extends AbstractController
         $etudiant = $etudiantRepository->findOneBy([
             'utilisateur' => $user->getId()
         ]);
-
-        if (!$etudiant) {
-            $etudiant = $etudiantRepository->findOneBy([
-                'user' => $user->getId()
-            ]);
-        }
 
         if (!$etudiant) {
             throw $this->createAccessDeniedException(
