@@ -19,9 +19,6 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ActiviteController extends AbstractController
 {
-    // =========================================================
-    // LISTE DES ACTIVITÉS ACCEPTÉES (visible par tous les médecins)
-    // =========================================================
     #[Route('/api/activites/accepte', name: 'activites_accepte', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function listeAcceptees(ActiviteRepository $activiteRepository): JsonResponse
@@ -44,6 +41,7 @@ class ActiviteController extends AbstractController
                 'duree' => $a->getDuree(),
                 'statut' => $a->getStatut(),
                 'createdAt' => $a->getCreatedAt()?->format('c'),
+                'nbParticipants' => count($a->getParticipants()),
                 'medecin' => $medecin ? [
                     'id' => $medecin->getId(),
                     'nom' => $utilisateur?->getNom(),
@@ -55,9 +53,6 @@ class ActiviteController extends AbstractController
         return $this->json($data);
     }
 
-    // =========================================================
-    // ROUTES MÉDECIN (ses propres activités)
-    // =========================================================
     #[Route('/api/medecin/activites', name: 'app_activite_index', methods: ['GET', 'POST'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function index(
@@ -126,6 +121,7 @@ class ActiviteController extends AbstractController
                     'duree' => $a->getDuree(),
                     'statut' => $a->getStatut(),
                     'createdAt' => $a->getCreatedAt()?->format('c'),
+                    'nbParticipants' => count($a->getParticipants()),
                 ],
                 $activites
             );
@@ -232,6 +228,7 @@ class ActiviteController extends AbstractController
                 'duree' => $activite->getDuree(),
                 'statut' => $activite->getStatut(),
                 'createdAt' => $activite->getCreatedAt()?->format('c'),
+                'nbParticipants' => count($activite->getParticipants()),
             ]);
         }
 

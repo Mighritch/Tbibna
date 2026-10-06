@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 const ITEMS_PER_PAGE = 3;
-const POLL_INTERVAL = 5000; // 5 secondes
+const POLL_INTERVAL = 5000;
 
 function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
   if (totalItems <= ITEMS_PER_PAGE) return null;
@@ -67,7 +67,7 @@ function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
           type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-[#0F3D3E] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E4DFD3] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:cursor-not-allowed disabled:opacity-40"
         >
           Suivant
           <ChevronRight size={16} />
@@ -84,7 +84,6 @@ export default function MesActivites() {
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  // Vue : "mes" (mes activités) ou "tous" (activités acceptées de tous les médecins)
   const [vue, setVue] = useState("mes");
 
   const [editingActivite, setEditingActivite] = useState(null);
@@ -100,15 +99,12 @@ export default function MesActivites() {
   const [formError, setFormError] = useState(null);
   const [viewingActivite, setViewingActivite] = useState(null);
 
-  // === TRI / FILTRES ===
-  const [sortDifficulte, setSortDifficulte] = useState(""); // "" | "facile" | "moyen" | "difficile"
-  const [sortStatut, setSortStatut] = useState(""); // "" | "en_attente" | "accepte" | "refuse"
+  const [sortDifficulte, setSortDifficulte] = useState("");
+  const [sortStatut, setSortStatut] = useState("");
 
-  // Ref pour éviter les race conditions et les appels superposés
   const isMounted = useRef(true);
   const isPolling = useRef(false);
 
-  // Fonction de chargement réutilisable
   const loadActivites = useCallback(
     async (silent = false) => {
       try {
@@ -141,7 +137,6 @@ export default function MesActivites() {
 
         if (isMounted.current) {
           setActivites(Array.isArray(data) ? data : []);
-          // On met aussi à jour le modal de visualisation si l'activité ouverte a changé de statut
           setViewingActivite((prev) => {
             if (!prev) return null;
             const updated = (Array.isArray(data) ? data : []).find(
@@ -164,7 +159,6 @@ export default function MesActivites() {
     [vue]
   );
 
-  // Chargement initial + quand on change de vue
   useEffect(() => {
     isMounted.current = true;
     let isCancelled = false;
@@ -183,7 +177,6 @@ export default function MesActivites() {
     };
   }, [loadActivites]);
 
-  // === POLLING temps réel (uniquement en vue "mes") ===
   useEffect(() => {
     if (vue !== "mes") return;
 
@@ -199,21 +192,17 @@ export default function MesActivites() {
     return () => clearInterval(intervalId);
   }, [vue, loadActivites]);
 
-  // Liste triée / filtrée
   const activitesFiltrees = useMemo(() => {
     let result = [...activites];
 
-    // Filtre par difficulté
     if (sortDifficulte) {
       result = result.filter((a) => a.difficulte === sortDifficulte);
     }
 
-    // Filtre par statut (uniquement utile en vue "mes")
     if (sortStatut && vue === "mes") {
       result = result.filter((a) => a.statut === sortStatut);
     }
 
-    // Tri par difficulté (facile → moyen → difficile)
     const ordreDifficulte = { facile: 1, moyen: 2, difficile: 3 };
     result.sort((a, b) => {
       const dA = ordreDifficulte[a.difficulte] || 99;
@@ -224,7 +213,6 @@ export default function MesActivites() {
     return result;
   }, [activites, sortDifficulte, sortStatut, vue]);
 
-  // === PAGINATION ===
   const totalPages = Math.max(1, Math.ceil(activitesFiltrees.length / ITEMS_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
   const paginated = activitesFiltrees.slice(
@@ -382,7 +370,6 @@ export default function MesActivites() {
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 sm:p-8">
       <div className="mx-auto max-w-5xl">
-        {/* Header */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
@@ -406,7 +393,6 @@ export default function MesActivites() {
           )}
         </div>
 
-        {/* Onglets */}
         <div className="mb-6 flex gap-2 rounded-2xl border border-[#E4DFD3] bg-white p-1.5 shadow-sm">
           <button
             type="button"
@@ -444,7 +430,6 @@ export default function MesActivites() {
           </button>
         </div>
 
-        {/* Filtres de tri */}
         {!loading && !error && activites.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-[#E4DFD3] bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-medium text-[#0F3D3E]">
@@ -452,7 +437,6 @@ export default function MesActivites() {
               Trier / Filtrer :
             </div>
 
-            {/* Difficulté */}
             <div className="flex items-center gap-2">
               <label className="text-xs text-[#5C5A54]">Difficulté</label>
               <select
@@ -467,7 +451,6 @@ export default function MesActivites() {
               </select>
             </div>
 
-            {/* Statut (uniquement en vue "mes") */}
             {vue === "mes" && (
               <div className="flex items-center gap-2">
                 <label className="text-xs text-[#5C5A54]">Statut</label>
@@ -499,7 +482,6 @@ export default function MesActivites() {
           </div>
         )}
 
-        {/* Contenu */}
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#0F3D3E] border-t-transparent" />
@@ -557,7 +539,6 @@ export default function MesActivites() {
                     {vue === "mes" && getStatutBadge(act.statut)}
                   </div>
 
-                  {/* Affichage du médecin auteur en vue "tous" */}
                   {vue === "tous" && act.medecin && (
                     <p className="mt-1 text-xs font-medium text-[#0F3D3E]/70">
                       Par Dr. {act.medecin.prenom} {act.medecin.nom}
@@ -568,7 +549,7 @@ export default function MesActivites() {
                     {act.description}
                   </p>
 
-                  <div className="mt-5 flex items-center gap-4 text-xs text-[#737873]">
+                  <div className="mt-5 flex flex-wrap items-center gap-4 text-xs text-[#737873]">
                     <span className="flex items-center gap-1.5">
                       <Clock size={14} />
                       {act.duree} min
@@ -576,6 +557,11 @@ export default function MesActivites() {
                     <span className="flex items-center gap-1.5">
                       <BarChart3 size={14} />
                       {act.difficulte}
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium text-[#0F3D3E]">
+                      <Users size={14} />
+                      {act.nbParticipants ?? 0} étudiant
+                      {(act.nbParticipants ?? 0) > 1 ? "s" : ""}
                     </span>
                   </div>
 
@@ -589,7 +575,6 @@ export default function MesActivites() {
                       Voir instructions
                     </button>
 
-                    {/* Boutons Modifier / Supprimer uniquement en vue "mes" */}
                     {vue === "mes" && (
                       <>
                         <button
@@ -631,7 +616,6 @@ export default function MesActivites() {
         )}
       </div>
 
-      {/* Modal visualisation */}
       {viewingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
@@ -656,7 +640,6 @@ export default function MesActivites() {
                 {vue === "mes" && getStatutBadge(viewingActivite.statut)}
               </div>
 
-              {/* Auteur en vue "tous" */}
               {vue === "tous" && viewingActivite.medecin && (
                 <p className="text-sm font-medium text-[#0F3D3E]/80">
                   Publié par Dr. {viewingActivite.medecin.prenom}{" "}
@@ -672,6 +655,12 @@ export default function MesActivites() {
                 <span className="flex items-center gap-1.5">
                   <BarChart3 size={16} />
                   {viewingActivite.difficulte}
+                </span>
+                <span className="flex items-center gap-1.5 font-medium text-[#0F3D3E]">
+                  <Users size={16} />
+                  {viewingActivite.nbParticipants ?? 0} étudiant
+                  {(viewingActivite.nbParticipants ?? 0) > 1 ? "s" : ""} inscrit
+                  {(viewingActivite.nbParticipants ?? 0) > 1 ? "s" : ""}
                 </span>
               </div>
 
@@ -721,7 +710,6 @@ export default function MesActivites() {
         </div>
       )}
 
-      {/* Modal édition (uniquement utile en vue "mes") */}
       {editingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
