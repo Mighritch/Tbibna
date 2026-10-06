@@ -4,10 +4,12 @@ namespace App\Controller;
 
 use App\Document\Activite;
 use App\Document\Medecin;
+use App\Document\SoumissionActivite;
 use App\Document\User;
 use App\Form\ActiviteType;
 use App\Repository\ActiviteRepository;
 use App\Repository\MedecinRepository;
+use App\Repository\SoumissionActiviteRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -267,6 +269,125 @@ class ActiviteController extends AbstractController
 
         return $this->render('activite/new.html.twig', [
             'form' => $form,
+        ]);
+    }
+
+    #[Route('/api/medecin/activites/{id}/soumissions', name: 'medecin_activite_soumissions', methods: ['GET'])]
+    #[IsGranted('ROLE_MEDECIN')]
+    public function soumissions(
+        string $id,
+        ActiviteRepository $activiteRepository,
+        MedecinRepository $medecinRepository,
+        SoumissionActiviteRepository $soumissionRepository
+    ): JsonResponse {
+        $medecin = $this->getMedecinConnecte($medecinRepository);
+
+        $activite = $activiteRepository->find($id);
+
+        if (!$activite) {
+            return $this->json(['message' => 'Activité introuvable.'], 404);
+        }
+
+        if ($activite->getMedecin()?->getId() !== $medecin->getId()) {
+            return $this->json(['message' => 'Vous n\'êtes pas autorisé à accéder à cette activité.'], 403);
+        }
+
+        $soumissions = $soumissionRepository->findBy(
+            ['activite' => $activite],
+            ['createdAt' => 'DESC']
+        );
+
+        if (empty($soumissions)) {
+            $soumissions = $soumissionRepository->findBy(
+                ['activite' => $activite->getId()],
+                ['createdAt' => 'DESC']
+            );
+        }
+
+        $data = array_map(function (SoumissionActivite $s) {
+            $etudiant = $s->getEtudiant();
+            $utilisateur = $etudiant?->getUtilisateur();
+
+            $etudiantNom = 'Étudiant';
+            if ($utilisateur) {
+                $prenom = method_exists($utilisateur, 'getPrenom') ? ($utilisateur->getPrenom() ?? '') : '';
+                $nom    = method_exists($utilisateur, 'getNom')    ? ($utilisateur->getNom() ?? '')    : '';
+                $etudiantNom = trim($prenom . ' ' . $nom) ?: 'Étudiant';
+            }
+
+            return [
+                'id'                  => $s->getId(),
+                'contenu'             => $s->getContenu(),
+                'commentaireEtudiant' => $s->getCommentaireEtudiant(),
+                'statut'              => $s->getStatut(),
+                'note'                => $s->getNote(),
+                'commentaireMedecin'  => $s->getCommentaireMedecin(),
+                'createdAt'           => $s->getCreatedAt()?->format('c'),
+                'etudiant'            => [
+                    'id'  => $etudiant?->getId(),
+                    'nom' => $etudiantNom,
+                ],
+            ];
+        }, $soumissions);
+
+        return $this->json([
+            'activite' => [
+                'id'    => $activite->getId(),
+                'titre' => $activite->getTitre(),
+            ],
+            'soumissions' => $data,
+            'total'       => count($data),
+        ]);
+    }
+
+    #[Route('/api/medecin/soumissions/{id}/noter', name: 'medecin_soumission_noter', methods: ['PUT'])]
+    #[IsGranted('ROLE_MEDECIN')]
+    public function noterSoumission(
+        string $id,
+        Request $request,
+        DocumentManager $dm,
+        MedecinRepository $medecinRepository,
+        SoumissionActiviteRepository $soumissionRepository
+    ): JsonResponse {
+        $medecin = $this->getMedecinConnecte($medecinRepository);
+
+        $soumission = $soumissionRepository->find($id);
+
+        if (!$soumission) {
+            return $this->json(['message' => 'Soumission introuvable.'], 404);
+        }
+
+        $activite = $soumission->getActivite();
+
+        if (!$activite || $activite->getMedecin()?->getId() !== $medecin->getId()) {
+            return $this->json(['message' => 'Vous n\'êtes pas autorisé à noter cette soumission.'], 403);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+
+        if (!$payload) {
+            return $this->json(['message' => 'Données JSON invalides'], 400);
+        }
+
+        if (array_key_exists('note', $payload)) {
+            $note = $payload['note'] !== null ? (float) $payload['note'] : null;
+            if ($note !== null && ($note < 0 || $note > 20)) {
+                return $this->json(['message' => 'La note doit être comprise entre 0 et 20.'], 422);
+            }
+            $soumission->setNote($note);
+        }
+
+        if (array_key_exists('commentaireMedecin', $payload)) {
+            $soumission->setCommentaireMedecin($payload['commentaireMedecin'] ?: null);
+        }
+
+        $soumission->setUpdatedAt(new \DateTimeImmutable());
+        $dm->flush();
+
+        return $this->json([
+            'message' => 'Note enregistrée avec succès.',
+            'note'    => $soumission->getNote(),
+            'commentaireMedecin' => $soumission->getCommentaireMedecin(),
         ]);
     }
 
