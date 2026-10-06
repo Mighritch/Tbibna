@@ -452,30 +452,34 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Utilisateur non authentifié.'], 401);
             }
 
+            // Récupération du médecin (une seule requête)
             $medecin = $this->medecinRepository->findOneBy(['utilisateur' => $user->getId()]);
 
             if (!$medecin) {
                 return $this->json(['error' => 'Profil médecin introuvable.'], 404);
             }
 
+            // Récupération des cours triés (index recommandé : medecin + dateCreation)
             $coursList = $this->coursRepository->findBy(
                 ['medecin' => $medecin],
                 ['dateCreation' => 'DESC']
             );
 
-            $result = array_map(static fn(Cours $c) => [
-                'id' => $c->getId(),
-                'titre' => $c->getTitre(),
-                'description' => $c->getDescription(),
-                'duree' => $c->getDuree(),
-                'langueCours' => $c->getLangueCours(),
-                'niveauCours' => $c->getNiveauCours(),
-                'contenuCours' => $c->getContenuCours(),
-                'nomOriginalFichier' => $c->getNomOriginalFichier(),
-                'typeContenu' => $c->getTypeContenu(),
-                'statut' => $c->getStatut(),
-                'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
-            ], $coursList);
+            $result = array_map(static function (Cours $c) {
+                return [
+                    'id'                  => $c->getId(),
+                    'titre'               => $c->getTitre(),
+                    'description'         => $c->getDescription(),
+                    'duree'               => $c->getDuree(),
+                    'langueCours'         => $c->getLangueCours(),
+                    'niveauCours'         => $c->getNiveauCours(),
+                    'contenuCours'        => $c->getContenuCours(),
+                    'nomOriginalFichier'  => $c->getNomOriginalFichier(),
+                    'typeContenu'         => $c->getTypeContenu(),
+                    'statut'              => $c->getStatut(),
+                    'dateCreation'        => $c->getDateCreation()?->format('Y-m-d H:i'),
+                ];
+            }, $coursList);
 
             return $this->json($result);
         } catch (\Throwable $e) {
