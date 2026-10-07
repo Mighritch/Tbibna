@@ -12,4 +12,14 @@ class ExamenRepository extends ServiceDocumentRepository
     {
         parent::__construct($registry, Examen::class);
     }
+
+    public function findByMedecin(string $medecinId): array
+    {
+        return $this->createQueryBuilder()
+            ->field('medecinId')->equals($medecinId)
+            ->sort('dateCreation', 'desc')
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
 }

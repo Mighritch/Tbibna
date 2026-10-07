@@ -9,12 +9,14 @@ import DashboardMedecin from "./Components/dashboard/DashboardMedecin";
 import AjouterCours from "./Components/medecin/AjouterCours";
 import MesCours from "./Components/dashboard/MesCours";
 import AdminCours from "./Components/dashboard/AdminCours";
-import AdminActivites from "./Components/dashboard/AdminActivites"; // ← AJOUTÉ
+import AdminActivites from "./Components/dashboard/AdminActivites";
 import Profile from "./Components/profile/Profile";
 import CoursEtudiant from "./Components/dashboard/CoursEtudiant";
-import ActivitesEtudiant from "./Components/dashboard/ActiviteEtudiant"; // ← AJOUTÉ
+import ActivitesEtudiant from "./Components/dashboard/ActiviteEtudiant";
 import MesActivites from "./Components/dashboard/MesActivites";
 import AjouterActivite from "./Components/medecin/AjouterActivite";
+import MesExamens from "./Components/dashboard/MesExamens";
+import AjouterExamen from "./Components/medecin/AjouterExamen";
 
 import {
   BookOpen,
@@ -420,6 +422,26 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
                 <AjouterActivite />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Liste des examens du médecin */}
+          <Route
+            path="/dashboard/medecin/examens"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <MesExamens />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ajout d'un examen */}
+          <Route
+            path="/dashboard/medecin/examens/ajouter"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <AjouterExamen />
               </ProtectedRoute>
             }
           />

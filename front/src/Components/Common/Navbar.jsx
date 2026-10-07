@@ -5,7 +5,6 @@ import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
 const BASE_NAV_LINKS = [
-  { label: "Examens", href: "#examens" },
   { label: "Formations", href: "#formations" },
   { label: "Évènements", href: "#evenements" },
   { label: "À propos", href: "#a-propos" },
@@ -13,7 +12,6 @@ const BASE_NAV_LINKS = [
 
 function isMedecin(user) {
   if (!user) return false;
-
   if (Array.isArray(user.roles)) {
     return user.roles.some(
       (r) =>
@@ -22,17 +20,14 @@ function isMedecin(user) {
         String(r).toUpperCase().includes("MEDECIN")
     );
   }
-
   if (user.role) {
     return String(user.role).toUpperCase().includes("MEDECIN");
   }
-
   return false;
 }
 
 function isAdmin(user) {
   if (!user) return false;
-
   if (Array.isArray(user.roles)) {
     return user.roles.some(
       (r) =>
@@ -41,17 +36,14 @@ function isAdmin(user) {
         String(r).toUpperCase().includes("ADMIN")
     );
   }
-
   if (user.role) {
     return String(user.role).toUpperCase().includes("ADMIN");
   }
-
   return false;
 }
 
 function isEtudiant(user) {
   if (!user) return false;
-
   if (Array.isArray(user.roles)) {
     return user.roles.some(
       (r) =>
@@ -60,11 +52,9 @@ function isEtudiant(user) {
         String(r).toUpperCase().includes("ETUDIANT")
     );
   }
-
   if (user.role) {
     return String(user.role).toUpperCase().includes("ETUDIANT");
   }
-
   return false;
 }
 
@@ -75,46 +65,27 @@ function getNavLinks(user) {
 
   let coursLink;
   let activitesLink;
+  let examensLink;
 
   if (admin) {
-    coursLink = {
-      label: "Cours",
-      to: "/dashboard/admin/cours",
-    };
-    activitesLink = {
-      label: "Activités",
-      to: "/dashboard/admin/activites",
-    };
+    coursLink = { label: "Cours", to: "/dashboard/admin/cours" };
+    activitesLink = { label: "Activités", to: "/dashboard/admin/activites" };
+    examensLink = { label: "Examens", to: "/dashboard/admin/examens" };
   } else if (medecin) {
-    coursLink = {
-      label: "Cours",
-      to: "/dashboard/medecin/cours",
-    };
-    activitesLink = {
-      label: "Activités",
-      to: "/dashboard/medecin/activites",
-    };
+    coursLink = { label: "Cours", to: "/dashboard/medecin/cours" };
+    activitesLink = { label: "Activités", to: "/dashboard/medecin/activites" };
+    examensLink = { label: "Examens", to: "/dashboard/medecin/examens" };
   } else if (etudiant) {
-    coursLink = {
-      label: "Cours",
-      to: "/dashboard/etudiant/cours",
-    };
-    activitesLink = {
-      label: "Activités",
-      to: "/dashboard/etudiant/activites",
-    };
+    coursLink = { label: "Cours", to: "/dashboard/etudiant/cours" };
+    activitesLink = { label: "Activités", to: "/dashboard/etudiant/activites" };
+    examensLink = { label: "Examens", to: "/dashboard/etudiant/examens" };
   } else {
-    coursLink = {
-      label: "Cours",
-      href: "#cours",
-    };
-    activitesLink = {
-      label: "Activités",
-      href: "#activites",
-    };
+    coursLink = { label: "Cours", href: "#cours" };
+    activitesLink = { label: "Activités", href: "#activites" };
+    examensLink = { label: "Examens", href: "#examens" };
   }
 
-  return [coursLink, activitesLink, ...BASE_NAV_LINKS];
+  return [coursLink, activitesLink, examensLink, ...BASE_NAV_LINKS];
 }
 
 export default function Navbar() {
@@ -127,21 +98,13 @@ export default function Navbar() {
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
-
     onScroll();
-
-    window.addEventListener("scroll", onScroll, {
-      passive: true,
-    });
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
-
     return () => {
       document.body.style.overflow = "";
     };
@@ -166,19 +129,11 @@ export default function Navbar() {
         <nav className="navbar__nav-desktop">
           {navLinks.map((link) =>
             link.to ? (
-              <Link
-                key={link.label}
-                to={link.to}
-                className="navbar__link"
-              >
+              <Link key={link.label} to={link.to} className="navbar__link">
                 {link.label}
               </Link>
             ) : (
-              <a
-                key={link.label}
-                href={link.href}
-                className="navbar__link"
-              >
+              <a key={link.label} href={link.href} className="navbar__link">
                 {link.label}
               </a>
             )
@@ -188,19 +143,13 @@ export default function Navbar() {
         <div className="navbar__right-actions">
           <div className="navbar__desktop-auth">
             <div className="navbar__divider" />
-
             {loading ? null : user ? (
               <>
                 <Link to="/profile" className="navbar__user">
                   <UserIcon size={16} />
                   <span>{user.prenom || user.nom}</span>
                 </Link>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="navbar__logout"
-                >
+                <button type="button" onClick={handleLogout} className="navbar__logout">
                   Se déconnecter
                 </button>
               </>
@@ -209,7 +158,6 @@ export default function Navbar() {
                 <Link to="/login" className="navbar__login">
                   Se connecter
                 </Link>
-
                 <Link to="/register" className="navbar__cta">
                   Créer un compte
                 </Link>
@@ -221,23 +169,15 @@ export default function Navbar() {
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="navbar__toggle"
-            aria-label={
-              open ? "Fermer le menu" : "Ouvrir le menu"
-            }
+            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
             aria-expanded={open}
           >
-            {open ? (
-              <X size={24} strokeWidth={2} />
-            ) : (
-              <Menu size={24} strokeWidth={2} />
-            )}
+            {open ? <X size={24} strokeWidth={2} /> : <Menu size={24} strokeWidth={2} />}
           </button>
         </div>
       </div>
 
-      <div
-        className={`navbar__mobile-menu ${open ? "open" : ""}`}
-      >
+      <div className={`navbar__mobile-menu ${open ? "open" : ""}`}>
         <div className="navbar__mobile-inner">
           <nav className="navbar__mobile-nav">
             {navLinks.map((link) =>
@@ -271,22 +211,15 @@ export default function Navbar() {
                   onClick={() => setOpen(false)}
                   className="navbar__mobile-login"
                 >
-                  <UserIcon
-                    size={16}
-                    style={{ marginRight: 8 }}
-                  />
+                  <UserIcon size={16} style={{ marginRight: 8 }} />
                   {user.prenom || user.nom}
                 </Link>
-
                 <button
                   type="button"
                   onClick={handleLogout}
                   className="navbar__mobile-cta navbar__mobile-logout"
                 >
-                  <LogOut
-                    size={16}
-                    style={{ marginRight: 8 }}
-                  />
+                  <LogOut size={16} style={{ marginRight: 8 }} />
                   Se déconnecter
                 </button>
               </>
@@ -299,7 +232,6 @@ export default function Navbar() {
                 >
                   Se connecter
                 </Link>
-
                 <Link
                   to="/register"
                   onClick={() => setOpen(false)}
