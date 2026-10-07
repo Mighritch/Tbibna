@@ -15,7 +15,6 @@ export default function AjouterExamen() {
     duree: 60,
     pointsTotaux: 20,
     pointsDePassage: 10,
-    statut: "brouillon",
   });
 
   const handleChange = (e) => {
@@ -36,10 +35,13 @@ export default function AjouterExamen() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...form,
+          titre: form.titre,
+          instructions: form.instructions,
           duree: Number(form.duree),
           pointsTotaux: Number(form.pointsTotaux),
           pointsDePassage: Number(form.pointsDePassage),
+          // IMPORTANT : on n'envoie JAMAIS de statut
+          // Le backend force toujours "brouillon"
         }),
       });
 
@@ -70,7 +72,7 @@ export default function AjouterExamen() {
         Ajouter un examen
       </h1>
       <p className="text-sm text-[#737873] mb-8">
-        Remplissez les informations de base de l’examen.
+        Remplissez les informations de base. L’examen sera soumis à validation par un administrateur avant publication.
       </p>
 
       {error && (
@@ -154,19 +156,8 @@ export default function AjouterExamen() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-[#0F3D3E] mb-1.5">
-            Statut
-          </label>
-          <select
-            name="statut"
-            value={form.statut}
-            onChange={handleChange}
-            className="w-full rounded-xl border border-[#E6E1D5] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F3D3E]/30"
-          >
-            <option value="brouillon">Brouillon</option>
-            <option value="publié">Publié</option>
-          </select>
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          Après enregistrement, l’examen sera automatiquement en <strong>brouillon</strong> et devra être approuvé par un administrateur pour être publié sur la plateforme.
         </div>
 
         <div className="flex justify-end gap-3 pt-4">
@@ -182,7 +173,7 @@ export default function AjouterExamen() {
             className="inline-flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#082829] disabled:opacity-60"
           >
             <Save size={16} />
-            {loading ? "Enregistrement..." : "Enregistrer l’examen"}
+            {loading ? "Enregistrement..." : "Soumettre l’examen"}
           </button>
         </div>
       </form>

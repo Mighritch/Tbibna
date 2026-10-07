@@ -22,4 +22,25 @@ class ExamenRepository extends ServiceDocumentRepository
             ->execute()
             ->toArray();
     }
+
+    /** Tous les examens (pour l'admin), triés du plus récent */
+    public function findAllOrdered(): array
+    {
+        return $this->createQueryBuilder()
+            ->sort('dateCreation', 'desc')
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
+
+    /** Examens en attente d'approbation (brouillon) */
+    public function findPending(): array
+    {
+        return $this->createQueryBuilder()
+            ->field('statut')->equals('brouillon')
+            ->sort('dateCreation', 'desc')
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
 }

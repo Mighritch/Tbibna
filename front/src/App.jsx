@@ -17,6 +17,7 @@ import MesActivites from "./Components/dashboard/MesActivites";
 import AjouterActivite from "./Components/medecin/AjouterActivite";
 import MesExamens from "./Components/dashboard/MesExamens";
 import AjouterExamen from "./Components/medecin/AjouterExamen";
+import AdminExamens from "./Components/dashboard/AdminExamens";
 
 import {
   BookOpen,
@@ -32,7 +33,6 @@ import {
   Sparkles
 } from "lucide-react";
 
-// ===================== CONSTANTES HOMEPAGE =====================
 const SPECIALTIES = [
   {
     icon: Stethoscope,
@@ -84,11 +84,9 @@ const BENEFITS = [
   },
 ];
 
-// ===================== COMPOSANT HOMEPAGE =====================
 function HomePage() {
   return (
     <>
-      {/* HERO SECTION */}
       <section className="relative overflow-hidden pt-6 pb-20 lg:pt-12 lg:pb-32">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="animate-glow absolute -top-24 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-[#0F3D3E]/[0.04] blur-3xl" />
@@ -200,7 +198,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* BENEFITS SECTION */}
       <section className="border-y border-[#E6E1D5] bg-white/60 py-12 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-8 md:grid-cols-3">
@@ -222,7 +219,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* SPECIALTIES SECTION */}
       <section id="specialites" className="py-20 lg:py-28 bg-[#F3EFE6]/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
@@ -279,7 +275,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* CTA SECTION */}
       <section className="relative overflow-hidden py-20 lg:py-28 bg-white border-t border-[#E6E1D5]">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F3D3E] text-[#D4AF37] shadow-xl">
@@ -312,7 +307,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="border-t border-[#E6E1D5] bg-[#FAF8F5] py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
@@ -332,7 +326,6 @@ function HomePage() {
   );
 }
 
-// ===================== COMPOSANT APPLICATION =====================
 function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#181919] antialiased">
@@ -344,10 +337,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Redirection intelligente selon le rôle */}
           <Route path="/dashboard" element={<RoleRedirect />} />
 
-          {/* Dashboards protégés par rôle */}
           <Route
             path="/dashboard/etudiant"
             element={
@@ -357,7 +348,6 @@ function App() {
             }
           />
 
-          {/* Liste des cours approuvés (étudiant) */}
           <Route
             path="/dashboard/etudiant/cours"
             element={
@@ -367,7 +357,6 @@ function App() {
             }
           />
 
-          {/* Liste des activités acceptées (étudiant) */}
           <Route
             path="/dashboard/etudiant/activites"
             element={
@@ -386,7 +375,6 @@ function App() {
             }
           />
 
-          {/* Liste des cours du médecin connecté */}
           <Route
             path="/dashboard/medecin/cours"
             element={
@@ -396,7 +384,6 @@ function App() {
             }
           />
 
-          {/* Ajout d'un cours (réservé aux médecins) */}
           <Route
             path="/dashboard/medecin/cours/ajouter"
             element={
@@ -406,7 +393,6 @@ function App() {
             }
           />
 
-          {/* Liste des activités du médecin */}
           <Route
             path="/dashboard/medecin/activites"
             element={
@@ -416,7 +402,6 @@ function App() {
             }
           />
 
-          {/* Ajout d'une activité */}
           <Route
             path="/dashboard/medecin/activites/ajouter"
             element={
@@ -426,7 +411,6 @@ function App() {
             }
           />
 
-          {/* Liste des examens du médecin */}
           <Route
             path="/dashboard/medecin/examens"
             element={
@@ -436,7 +420,6 @@ function App() {
             }
           />
 
-          {/* Ajout d'un examen */}
           <Route
             path="/dashboard/medecin/examens/ajouter"
             element={
@@ -446,7 +429,6 @@ function App() {
             }
           />
 
-          {/* ========== ADMIN ========== */}
           <Route
             path="/dashboard/admin"
             element={
@@ -464,7 +446,6 @@ function App() {
             }
           />
 
-          {/* ROUTE ADMIN ACTIVITÉS */}
           <Route
             path="/dashboard/admin/activites"
             element={
@@ -474,7 +455,15 @@ function App() {
             }
           />
 
-          {/* Profil utilisateur */}
+          <Route
+            path="/dashboard/admin/examens"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <AdminExamens />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/profile"
             element={

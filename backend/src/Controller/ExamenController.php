@@ -62,7 +62,10 @@ class ExamenController extends AbstractController
         $examen->setPointsTotaux((int) ($data['pointsTotaux'] ?? 20));
         $examen->setPointsDePassage((int) ($data['pointsDePassage'] ?? 10));
         $examen->setMedecinId($user->getId());
-        $examen->setStatut($data['statut'] ?? 'brouillon');
+        
+        // STATUT TOUJOURS FORCÉ À "brouillon" — le médecin ne peut pas le changer
+        $examen->setStatut('brouillon');
+        
         $examen->setQuestions($data['questions'] ?? []);
 
         $this->dm->persist($examen);
@@ -70,7 +73,8 @@ class ExamenController extends AbstractController
 
         return $this->json([
             'id' => $examen->getId(),
-            'message' => 'Examen créé avec succès',
+            'message' => 'Examen créé avec succès. Il est en attente de validation par un administrateur.',
+            'statut' => $examen->getStatut(),
         ], 201);
     }
 
