@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Clock, Award, FileText } from "lucide-react";
+import { Plus, Clock, Award, FileText, Search } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 
 export default function MesExamens() {
   const [examens, setExamens] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const { token } = useAuth();
 
   useEffect(() => {
@@ -28,6 +29,11 @@ export default function MesExamens() {
     };
     fetchExamens();
   }, [token]);
+
+  // Filtrage par titre
+  const filtered = examens.filter((ex) =>
+    ex.titre?.toLowerCase().includes(search.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -58,24 +64,47 @@ export default function MesExamens() {
         </Link>
       </div>
 
-      {examens.length === 0 ? (
+      {/* Barre de recherche */}
+      <div className="mb-8 relative max-w-md">
+        <Search
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
+        />
+        <input
+          type="text"
+          placeholder="Rechercher un examen par titre..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-xl border border-[#E6E1D5] bg-white py-3 pl-10 pr-4 text-sm text-[#0F3D3E] placeholder:text-[#A0A0A0] focus:border-[#0F3D3E] focus:outline-none focus:ring-2 focus:ring-[#0F3D3E]/20"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#E6E1D5] bg-white p-12 text-center">
           <FileText size={40} className="mx-auto text-[#D4AF37] mb-4" />
-          <p className="text-[#0F3D3E] font-medium">Aucun examen pour le moment</p>
-          <p className="text-sm text-[#737873] mt-1">
-            Commencez par créer votre premier examen.
+          <p className="text-[#0F3D3E] font-medium">
+            {search
+              ? "Aucun examen ne correspond à votre recherche"
+              : "Aucun examen pour le moment"}
           </p>
-          <Link
-            to="/dashboard/medecin/examens/ajouter"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#0F3D3E]/20 bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-sm hover:bg-[#FAF8F5] hover:border-[#0F3D3E]/40 transition"
-          >
-            <Plus size={16} />
-            Créer un examen
-          </Link>
+          <p className="text-sm text-[#737873] mt-1">
+            {search
+              ? "Essayez avec un autre mot-clé."
+              : "Commencez par créer votre premier examen."}
+          </p>
+          {!search && (
+            <Link
+              to="/dashboard/medecin/examens/ajouter"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#0F3D3E]/20 bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-sm hover:bg-[#FAF8F5] hover:border-[#0F3D3E]/40 transition"
+            >
+              <Plus size={16} />
+              Créer un examen
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {examens.map((examen) => (
+          {filtered.map((examen) => (
             <div
               key={examen.id}
               className="rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm hover:shadow-md transition"

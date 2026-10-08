@@ -46,10 +46,9 @@ export default function ExamensEtudiant() {
     fetchExamens();
   }, []);
 
-  const filtered = examens.filter(
-    (ex) =>
-      ex.titre?.toLowerCase().includes(search.toLowerCase()) ||
-      ex.instructions?.toLowerCase().includes(search.toLowerCase())
+  // Filtrage uniquement par titre
+  const filtered = examens.filter((ex) =>
+    ex.titre?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -80,7 +79,7 @@ export default function ExamensEtudiant() {
           />
           <input
             type="text"
-            placeholder="Rechercher un examen..."
+            placeholder="Rechercher un examen par titre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-xl border border-[#E6E1D5] bg-white py-3 pl-10 pr-4 text-sm text-[#0F3D3E] placeholder:text-[#A0A0A0] focus:border-[#0F3D3E] focus:outline-none focus:ring-2 focus:ring-[#0F3D3E]/20"
@@ -102,10 +101,14 @@ export default function ExamensEtudiant() {
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <FileQuestion size={48} className="text-[#D4AF37]" />
             <p className="mt-4 text-lg font-medium text-[#0F3D3E]">
-              Aucun examen disponible pour le moment
+              {search
+                ? "Aucun examen ne correspond à votre recherche"
+                : "Aucun examen disponible pour le moment"}
             </p>
             <p className="mt-1 text-sm text-[#737873]">
-              Les examens publiés par l’admin apparaîtront ici.
+              {search
+                ? "Essayez avec un autre mot-clé."
+                : "Les examens publiés par l’admin apparaîtront ici."}
             </p>
           </div>
         ) : (
