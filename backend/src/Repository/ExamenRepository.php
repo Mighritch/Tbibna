@@ -43,4 +43,15 @@ class ExamenRepository extends ServiceDocumentRepository
             ->execute()
             ->toArray();
     }
+
+    /** Examens publiés (acceptés par l'admin) – pour les étudiants */
+    public function findPublished(): array
+    {
+        return $this->createQueryBuilder()
+            ->field('statut')->equals('publié')
+            ->sort('dateCreation', 'desc')
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
 }

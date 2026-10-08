@@ -3,7 +3,7 @@
 namespace App\Controller;
 
 use App\Document\Examen;
-use App\Document\User; // Ajustez le namespace selon l'emplacement de votre classe User
+use App\Document\User;
 use App\Repository\ExamenRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,6 +20,29 @@ class ExamenController extends AbstractController
         private ExamenRepository $examenRepository
     ) {}
 
+    // ========== ÉTUDIANT : liste des examens publiés ==========
+    #[Route('/publies', name: 'examen_list_publies', methods: ['GET'])]
+    #[IsGranted('ROLE_ETUDIANT')]
+    public function listPublished(): JsonResponse
+    {
+        $examens = $this->examenRepository->findPublished();
+
+        $data = array_map(fn(Examen $e) => [
+            'id' => $e->getId(),
+            'titre' => $e->getTitre(),
+            'instructions' => $e->getInstructions(),
+            'duree' => $e->getDuree(),
+            'pointsTotaux' => $e->getPointsTotaux(),
+            'pointsDePassage' => $e->getPointsDePassage(),
+            'statut' => $e->getStatut(),
+            'dateCreation' => $e->getDateCreation()?->format('Y-m-d H:i'),
+            'questionsCount' => count($e->getQuestions()),
+        ], $examens);
+
+        return $this->json($data);
+    }
+
+    // ========== MÉDECIN : liste de ses examens ==========
     #[Route('', name: 'examen_list_medecin', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function listForMedecin(): JsonResponse
@@ -43,6 +66,7 @@ class ExamenController extends AbstractController
         return $this->json($data);
     }
 
+    // ========== MÉDECIN : création ==========
     #[Route('', name: 'examen_create', methods: ['POST'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function create(Request $request): JsonResponse
@@ -63,7 +87,7 @@ class ExamenController extends AbstractController
         $examen->setPointsDePassage((int) ($data['pointsDePassage'] ?? 10));
         $examen->setMedecinId($user->getId());
         
-        // STATUT TOUJOURS FORCÉ À "brouillon" — le médecin ne peut pas le changer
+        // STATUT TOUJOURS FORCÉ À "brouillon"
         $examen->setStatut('brouillon');
         
         $examen->setQuestions($data['questions'] ?? []);
@@ -78,6 +102,7 @@ class ExamenController extends AbstractController
         ], 201);
     }
 
+    // ========== MÉDECIN : détail d’un examen ==========
     #[Route('/{id}', name: 'examen_show', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function show(string $id): JsonResponse
@@ -90,7 +115,6 @@ class ExamenController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        // Vérifier que le médecin est bien le propriétaire
         if ($examen->getMedecinId() !== $user->getId()) {
             return $this->json(['error' => 'Accès refusé'], 403);
         }

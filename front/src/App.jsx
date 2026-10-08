@@ -13,6 +13,7 @@ import AdminActivites from "./Components/dashboard/AdminActivites";
 import Profile from "./Components/profile/Profile";
 import CoursEtudiant from "./Components/dashboard/CoursEtudiant";
 import ActivitesEtudiant from "./Components/dashboard/ActiviteEtudiant";
+import ExamensEtudiant from "./Components/dashboard/ExamensEtudiant";
 import MesActivites from "./Components/dashboard/MesActivites";
 import AjouterActivite from "./Components/medecin/AjouterActivite";
 import MesExamens from "./Components/dashboard/MesExamens";
@@ -362,6 +363,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_ETUDIANT"]}>
                 <ActivitesEtudiant />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/etudiant/examens"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ETUDIANT"]}>
+                <ExamensEtudiant />
               </ProtectedRoute>
             }
           />
