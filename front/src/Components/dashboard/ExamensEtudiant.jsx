@@ -8,6 +8,8 @@ import {
   Loader2,
   AlertCircle,
   Search,
+  CheckCircle2,
+  UserPlus,
 } from "lucide-react";
 
 export default function ExamensEtudiant() {
@@ -15,14 +17,17 @@ export default function ExamensEtudiant() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
+  const [inscrivantId, setInscrivantId] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchExamens = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem("token"); // adaptez selon votre AuthContext
+        const token = localStorage.getItem("token");
         const response = await fetch("/api/examens/publies", {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -35,18 +40,59 @@ export default function ExamensEtudiant() {
         }
 
         const data = await response.json();
-        setExamens(data);
+        if (isMounted) {
+          setExamens(data);
+        }
       } catch (err) {
-        setError(err.message || "Une erreur est survenue");
+        if (isMounted) {
+          setError(err.message || "Une erreur est survenue");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchExamens();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Filtrage uniquement par titre
+  const handleInscription = async (examenId) => {
+    try {
+      setInscrivantId(examenId);
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`/api/examens/${examenId}/inscrire`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erreur lors de l'inscription");
+      }
+
+      // Mise à jour locale
+      setExamens((prev) =>
+        prev.map((ex) =>
+          ex.id === examenId ? { ...ex, inscrit: true } : ex
+        )
+      );
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setInscrivantId(null);
+    }
+  };
+
   const filtered = examens.filter((ex) =>
     ex.titre?.toLowerCase().includes(search.toLowerCase())
   );
@@ -90,7 +136,9 @@ export default function ExamensEtudiant() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 size={40} className="animate-spin text-[#0F3D3E]" />
-            <p className="mt-4 text-sm text-[#737873]">Chargement des examens...</p>
+            <p className="mt-4 text-sm text-[#737873]">
+              Chargement des examens...
+            </p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -122,8 +170,14 @@ export default function ExamensEtudiant() {
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EBF3F0] text-[#2A6B59] group-hover:bg-[#0F3D3E] group-hover:text-[#D4AF37] transition-colors">
                     <Award size={22} />
                   </div>
-                  <span className="rounded-full bg-[#EBF3F0] px-2.5 py-1 text-[11px] font-semibold text-[#2A6B59]">
-                    Publié
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      examen.inscrit
+                        ? "bg-green-100 text-green-700"
+                        : "bg-[#EBF3F0] text-[#2A6B59]"
+                    }`}
+                  >
+                    {examen.inscrit ? "Inscrit" : "Publié"}
                   </span>
                 </div>
 
@@ -155,12 +209,33 @@ export default function ExamensEtudiant() {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-[#E6E1D5]">
-                  <Link
-                    to={`/dashboard/etudiant/examens/${examen.id}`}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-[#082829] hover:shadow-md"
-                  >
-                    Commencer l’examen
-                  </Link>
+                  {examen.inscrit ? (
+                    <Link
+                      to={`/dashboard/etudiant/examens/${examen.id}`}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white border border-[#0F3D3E] px-4 py-3 text-sm font-semibold text-[#0F3D3E] transition-all hover:bg-[#0F3D3E] hover:text-white hover:shadow-md"
+                    >
+                      <CheckCircle2 size={18} />
+                      Commencer l’examen
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => handleInscription(examen.id)}
+                      disabled={inscrivantId === examen.id}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#2A6B59] px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-[#1e4f42] hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {inscrivantId === examen.id ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Inscription...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus size={18} />
+                          S’inscrire à l’examen
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
