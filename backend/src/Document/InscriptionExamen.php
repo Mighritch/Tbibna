@@ -26,12 +26,17 @@ class InscriptionExamen
     #[ODM\Field(type: "date_immutable")]
     private ?\DateTimeImmutable $dateSoumission = null;
 
+    // Nouveau champ pour stocker les réponses de l'étudiant
+    #[ODM\Field(type: "collection")]
+    private array $reponses = [];
+
     public function __construct()
     {
         $this->dateInscription = new \DateTimeImmutable();
+        $this->reponses = [];
     }
 
-    // Getters & Setters
+    // ========== Getters & Setters ==========
 
     public function getId(): ?string
     {
@@ -90,6 +95,19 @@ class InscriptionExamen
     public function setDateSoumission(?\DateTimeImmutable $dateSoumission): static
     {
         $this->dateSoumission = $dateSoumission;
+        return $this;
+    }
+
+    // ========== Réponses de l'étudiant ==========
+
+    public function getReponses(): array
+    {
+        return $this->reponses;
+    }
+
+    public function setReponses(array $reponses): static
+    {
+        $this->reponses = $reponses;
         return $this;
     }
 }

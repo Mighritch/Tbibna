@@ -5,7 +5,6 @@ import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
 const BASE_NAV_LINKS = [
-  { label: "Formations", href: "#formations" },
   { label: "Évènements", href: "#evenements" },
   { label: "À propos", href: "#a-propos" },
 ];
@@ -63,29 +62,38 @@ function getNavLinks(user) {
   const admin = isAdmin(user);
   const etudiant = isEtudiant(user);
 
-  let coursLink;
-  let activitesLink;
-  let examensLink;
+  let links;
 
   if (admin) {
-    coursLink = { label: "Cours", to: "/dashboard/admin/cours" };
-    activitesLink = { label: "Activités", to: "/dashboard/admin/activites" };
-    examensLink = { label: "Examens", to: "/dashboard/admin/examens" };
+    links = [
+      { label: "Cours", to: "/dashboard/admin/cours" },
+      { label: "Activités", to: "/dashboard/admin/activites" },
+      { label: "Examens", to: "/dashboard/admin/examens" },
+    ];
   } else if (medecin) {
-    coursLink = { label: "Cours", to: "/dashboard/medecin/cours" };
-    activitesLink = { label: "Activités", to: "/dashboard/medecin/activites" };
-    examensLink = { label: "Examens", to: "/dashboard/medecin/examens" };
+    links = [
+      { label: "Cours", to: "/dashboard/medecin/cours" },
+      { label: "Activités", to: "/dashboard/medecin/activites" },
+      { label: "Examens", to: "/dashboard/medecin/examens" },
+      { label: "Formations", to: "/dashboard/medecin/formations" },
+    ];
   } else if (etudiant) {
-    coursLink = { label: "Cours", to: "/dashboard/etudiant/cours" };
-    activitesLink = { label: "Activités", to: "/dashboard/etudiant/activites" };
-    examensLink = { label: "Examens", to: "/dashboard/etudiant/examens" };
+    links = [
+      { label: "Cours", to: "/dashboard/etudiant/cours" },
+      { label: "Activités", to: "/dashboard/etudiant/activites" },
+      { label: "Examens", to: "/dashboard/etudiant/examens" },
+    ];
   } else {
-    coursLink = { label: "Cours", href: "#cours" };
-    activitesLink = { label: "Activités", href: "#activites" };
-    examensLink = { label: "Examens", href: "#examens" };
+    // Visiteur non connecté
+    links = [
+      { label: "Cours", href: "#cours" },
+      { label: "Activités", href: "#activites" },
+      { label: "Examens", href: "#examens" },
+      { label: "Formations", href: "#formations" },
+    ];
   }
 
-  return [coursLink, activitesLink, examensLink, ...BASE_NAV_LINKS];
+  return [...links, ...BASE_NAV_LINKS];
 }
 
 export default function Navbar() {

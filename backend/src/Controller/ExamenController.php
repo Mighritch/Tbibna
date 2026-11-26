@@ -11,6 +11,7 @@ use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -18,22 +19,31 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class ExamenController extends AbstractController
 {
     public function __construct(
-        private DocumentManager $dm,
-        private ExamenRepository $examenRepository,
-        private InscriptionExamenRepository $inscriptionRepository
+        private readonly DocumentManager $dm,
+        private readonly ExamenRepository $examenRepository,
+        private readonly InscriptionExamenRepository $inscriptionRepository
     ) {}
 
-    // ========== ÉTUDIANT : liste des examens publiés ==========
     #[Route('/publies', name: 'examen_list_publies', methods: ['GET'])]
     #[IsGranted('ROLE_ETUDIANT')]
     public function listPublished(): JsonResponse
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $examens = $this->examenRepository->findPublished();
 
         $data = array_map(function (Examen $e) use ($user) {
-            $inscrit = $this->inscriptionRepository->isInscrit($e->getId(), $user->getId());
+            $inscrit = $this->inscriptionRepository->isInscrit(
+                $e->getId(),
+                $user->getId()
+            );
+
+            $questions = $e->getQuestions();
+            $questionsCount = is_countable($questions) ? count($questions) : 0;
 
             return [
                 'id' => $e->getId(),
@@ -44,34 +54,40 @@ class ExamenController extends AbstractController
                 'pointsDePassage' => $e->getPointsDePassage(),
                 'statut' => $e->getStatut(),
                 'dateCreation' => $e->getDateCreation()?->format('Y-m-d H:i'),
-                'questionsCount' => count($e->getQuestions()),
-                'inscrit' => $inscrit, // ← nouveau
+                'questionsCount' => $questionsCount,
+                'inscrit' => $inscrit,
             ];
         }, $examens);
 
         return $this->json($data);
     }
 
-    // ========== ÉTUDIANT : s'inscrire à un examen ==========
     #[Route('/{id}/inscrire', name: 'examen_inscrire', methods: ['POST'])]
     #[IsGranted('ROLE_ETUDIANT')]
     public function inscrire(string $id): JsonResponse
     {
         $examen = $this->examenRepository->find($id);
+
         if (!$examen) {
-            return $this->json(['error' => 'Examen introuvable'], 404);
+            return $this->json(['error' => 'Examen introuvable'], Response::HTTP_NOT_FOUND);
         }
 
         if ($examen->getStatut() !== 'publié') {
-            return $this->json(['error' => 'Cet examen n\'est pas encore publié'], 400);
+            return $this->json([
+                'error' => 'Cet examen n\'est pas encore publié'
+            ], Response::HTTP_BAD_REQUEST);
         }
 
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
 
-        // Déjà inscrit ?
         if ($this->inscriptionRepository->isInscrit($id, $user->getId())) {
-            return $this->json(['error' => 'Vous êtes déjà inscrit à cet examen'], 400);
+            return $this->json([
+                'error' => 'Vous êtes déjà inscrit à cet examen'
+            ], Response::HTTP_BAD_REQUEST);
         }
 
         $inscription = new InscriptionExamen();
@@ -84,28 +100,33 @@ class ExamenController extends AbstractController
         return $this->json([
             'message' => 'Inscription réussie. Vous pouvez maintenant passer l\'examen.',
             'inscriptionId' => $inscription->getId(),
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 
-    // ========== ÉTUDIANT : détail d’un examen (seulement si inscrit) ==========
     #[Route('/{id}/etudiant', name: 'examen_show_etudiant', methods: ['GET'])]
     #[IsGranted('ROLE_ETUDIANT')]
     public function showForEtudiant(string $id): JsonResponse
     {
         $examen = $this->examenRepository->find($id);
+
         if (!$examen) {
-            return $this->json(['error' => 'Examen introuvable'], 404);
+            return $this->json(['error' => 'Examen introuvable'], Response::HTTP_NOT_FOUND);
         }
 
         if ($examen->getStatut() !== 'publié') {
-            return $this->json(['error' => 'Cet examen n\'est pas publié'], 403);
+            return $this->json(['error' => 'Cet examen n\'est pas publié'], Response::HTTP_FORBIDDEN);
         }
 
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
 
         if (!$this->inscriptionRepository->isInscrit($id, $user->getId())) {
-            return $this->json(['error' => 'Vous devez vous inscrire à cet examen avant de le consulter'], 403);
+            return $this->json([
+                'error' => 'Vous devez vous inscrire à cet examen avant de le consulter'
+            ], Response::HTTP_FORBIDDEN);
         }
 
         return $this->json([
@@ -116,44 +137,59 @@ class ExamenController extends AbstractController
             'pointsTotaux' => $examen->getPointsTotaux(),
             'pointsDePassage' => $examen->getPointsDePassage(),
             'statut' => $examen->getStatut(),
-            'questions' => $examen->getQuestions(), // ← questions visibles seulement si inscrit
+            'questions' => $examen->getQuestions(),
             'dateCreation' => $examen->getDateCreation()?->format('Y-m-d H:i'),
         ]);
     }
 
-    // ========== ÉTUDIANT : soumettre les réponses (uniquement si inscrit) ==========
     #[Route('/{id}/soumettre', name: 'examen_soumettre', methods: ['POST'])]
     #[IsGranted('ROLE_ETUDIANT')]
     public function soumettre(string $id, Request $request): JsonResponse
     {
         $examen = $this->examenRepository->find($id);
+
         if (!$examen) {
-            return $this->json(['error' => 'Examen introuvable'], 404);
+            return $this->json(['error' => 'Examen introuvable'], Response::HTTP_NOT_FOUND);
         }
 
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
 
-        $inscription = $this->inscriptionRepository->findByExamenAndEtudiant($id, $user->getId());
+        $inscription = $this->inscriptionRepository->findByExamenAndEtudiant(
+            $id,
+            $user->getId()
+        );
+
         if (!$inscription) {
-            return $this->json(['error' => 'Vous devez être inscrit pour soumettre cet examen'], 403);
+            return $this->json([
+                'error' => 'Vous devez être inscrit pour soumettre cet examen'
+            ], Response::HTTP_FORBIDDEN);
         }
 
-        if ($inscription->getStatut() === 'soumis' || $inscription->getStatut() === 'terminé') {
-            return $this->json(['error' => 'Vous avez déjà soumis cet examen'], 400);
+        if (in_array($inscription->getStatut(), ['soumis', 'terminé'], true)) {
+            return $this->json([
+                'error' => 'Vous avez déjà soumis cet examen'
+            ], Response::HTTP_BAD_REQUEST);
         }
 
-        $data = json_decode($request->getContent(), true);
-        $reponses = $data['reponses'] ?? [];
+        try {
+            $data = $request->toArray();
+        } catch (\Throwable) {
+            return $this->json(['error' => 'Format JSON invalide'], Response::HTTP_BAD_REQUEST);
+        }
 
-        // Ici tu peux calculer le score, enregistrer les réponses, etc.
-        // Pour l’instant on met juste le statut à "soumis"
+        if (!isset($data['reponses']) || !is_array($data['reponses'])) {
+            return $this->json([
+                'error' => 'Les réponses sont obligatoires et doivent être envoyées sous forme de tableau'
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
+        $inscription->setReponses($data['reponses']);
         $inscription->setStatut('soumis');
         $inscription->setDateSoumission(new \DateTimeImmutable());
-
-        // Optionnel : stocker les réponses dans l’inscription
-        // $inscription->setReponses($reponses);
 
         $this->dm->flush();
 
@@ -163,41 +199,58 @@ class ExamenController extends AbstractController
         ]);
     }
 
-    // ========== MÉDECIN : liste de ses examens ==========
     #[Route('', name: 'examen_list_medecin', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function listForMedecin(): JsonResponse
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $examens = $this->examenRepository->findByMedecin($user->getId());
 
-        $data = array_map(fn(Examen $e) => [
-            'id' => $e->getId(),
-            'titre' => $e->getTitre(),
-            'instructions' => $e->getInstructions(),
-            'duree' => $e->getDuree(),
-            'pointsTotaux' => $e->getPointsTotaux(),
-            'pointsDePassage' => $e->getPointsDePassage(),
-            'statut' => $e->getStatut(),
-            'dateCreation' => $e->getDateCreation()?->format('Y-m-d H:i'),
-            'questionsCount' => count($e->getQuestions()),
-        ], $examens);
+        $data = array_map(function (Examen $e) {
+            $questions = $e->getQuestions();
+            $questionsCount = is_countable($questions) ? count($questions) : 0;
+
+            return [
+                'id' => $e->getId(),
+                'titre' => $e->getTitre(),
+                'instructions' => $e->getInstructions(),
+                'duree' => $e->getDuree(),
+                'pointsTotaux' => $e->getPointsTotaux(),
+                'pointsDePassage' => $e->getPointsDePassage(),
+                'statut' => $e->getStatut(),
+                'dateCreation' => $e->getDateCreation()?->format('Y-m-d H:i'),
+                'questionsCount' => $questionsCount,
+            ];
+        }, $examens);
 
         return $this->json($data);
     }
 
-    // ========== MÉDECIN : création ==========
     #[Route('', name: 'examen_create', methods: ['POST'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function create(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        /** @var User $user */
+        try {
+            $data = $request->toArray();
+        } catch (\Throwable) {
+            return $this->json(['error' => 'Format JSON invalide'], Response::HTTP_BAD_REQUEST);
+        }
+
+        /** @var User|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
 
         if (empty($data['titre']) || empty($data['duree'])) {
-            return $this->json(['error' => 'Titre et durée sont obligatoires'], 400);
+            return $this->json([
+                'error' => 'Titre et durée sont obligatoires'
+            ], Response::HTTP_BAD_REQUEST);
         }
 
         $examen = new Examen();
@@ -217,24 +270,27 @@ class ExamenController extends AbstractController
             'id' => $examen->getId(),
             'message' => 'Examen créé avec succès. Il est en attente de validation par un administrateur.',
             'statut' => $examen->getStatut(),
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 
-    // ========== MÉDECIN : détail d’un examen ==========
     #[Route('/{id}', name: 'examen_show', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function show(string $id): JsonResponse
     {
         $examen = $this->examenRepository->find($id);
+
         if (!$examen) {
-            return $this->json(['error' => 'Examen introuvable'], 404);
+            return $this->json(['error' => 'Examen introuvable'], Response::HTTP_NOT_FOUND);
         }
 
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
 
         if ($examen->getMedecinId() !== $user->getId()) {
-            return $this->json(['error' => 'Accès refusé'], 403);
+            return $this->json(['error' => 'Accès refusé'], Response::HTTP_FORBIDDEN);
         }
 
         return $this->json([
