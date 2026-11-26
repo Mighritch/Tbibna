@@ -21,6 +21,8 @@ import MesExamens from "./Components/dashboard/MesExamens";
 import AjouterExamen from "./Components/medecin/AjouterExamen";
 import AdminExamens from "./Components/dashboard/AdminExamens";
 import AjouterFormation from "./Components/medecin/AjouterFormation";
+import DetailFormation from "./Components/medecin/DetailFormation";
+import ModifierFormation from "./Components/medecin/ModifierFormation";
 import MesFormations from "./Components/dashboard/MesFormations";
 import AdminFormations from "./Components/dashboard/AdminFormations";
 
@@ -452,6 +454,7 @@ function App() {
             }
           />
 
+          {/* Formations (médecin) : liste, ajout, détails, modification */}
           <Route
             path="/dashboard/medecin/formations"
             element={
@@ -466,6 +469,24 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
                 <AjouterFormation />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/medecin/formations/:id"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <DetailFormation />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/medecin/formations/:id/modifier"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <ModifierFormation />
               </ProtectedRoute>
             }
           />

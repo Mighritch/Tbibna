@@ -90,22 +90,22 @@ class Formation
         return $this->dateDebut;
     }
 
-    public function setDateDebut(\DateTime $dateDebut): static
-    {
-        $this->dateDebut = $dateDebut;
-        return $this;
-    }
+    public function setDateDebut(?\DateTime $dateDebut): static
+{
+    $this->dateDebut = $dateDebut;
+    return $this;
+}
 
     public function getDateFin(): ?\DateTime
     {
         return $this->dateFin;
     }
 
-    public function setDateFin(\DateTime $dateFin): static
-    {
-        $this->dateFin = $dateFin;
-        return $this;
-    }
+    public function setDateFin(?\DateTime $dateFin): static
+{
+    $this->dateFin = $dateFin;
+    return $this;
+}
 
     public function getPrix(): ?float
     {

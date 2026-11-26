@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, BookOpen, Clock } from "lucide-react";
+import {
+  Plus,
+  BookOpen,
+  Clock,
+  Eye,
+  Pencil,
+  Trash2,
+  Loader2,
+  AlertTriangle,
+  Calendar,
+} from "lucide-react";
+
+const API = "http://localhost:8000/api/formations";
 
 const STATUT_UI = {
   en_attente: { label: "En attente de validation", cls: "bg-amber-100 text-amber-700" },
@@ -8,15 +20,23 @@ const STATUT_UI = {
   refusee: { label: "Refusée", cls: "bg-red-100 text-red-700" },
 };
 
+const formatDate = (d) =>
+  d ? new Date(d).toLocaleDateString("fr-FR") : null;
+
 export default function MesFormations() {
   const [formations, setFormations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // suppression
+  const [toDelete, setToDelete] = useState(null); // formation à supprimer
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
   useEffect(() => {
     let cancelled = false;
 
-    fetch("http://localhost:8000/api/formations/mes-formations", {
+    fetch(`${API}/mes-formations`, {
       method: "GET",
       credentials: "include",
       headers: { Accept: "application/json" },
@@ -48,6 +68,35 @@ export default function MesFormations() {
       cancelled = true;
     };
   }, []);
+
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`${API}/${toDelete.id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+
+      if (!res.ok) {
+        let message = "Erreur lors de la suppression.";
+        if (res.status === 401) message = "Non connecté. Veuillez vous reconnecter.";
+        else if (res.status === 403) message = "Vous ne pouvez pas supprimer cette formation.";
+        else if (res.status === 404) message = "Formation introuvable.";
+        throw new Error(message);
+      }
+
+      setFormations((prev) => prev.filter((f) => f.id !== toDelete.id));
+      setToDelete(null);
+    } catch (err) {
+      setDeleteError(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -103,7 +152,7 @@ export default function MesFormations() {
               return (
                 <div
                   key={f.id}
-                  className="rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
+                  className="flex flex-col rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
                 >
                   <div className="mb-3">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statut.cls}`}>
@@ -134,6 +183,38 @@ export default function MesFormations() {
                     <span className="inline-flex items-center gap-1">
                       <Clock size={14} /> {f.duree}h
                     </span>
+                    {f.dateDebut && (
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar size={14} /> {formatDate(f.dateDebut)}
+                        {f.dateFin && ` → ${formatDate(f.dateFin)}`}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-5 flex gap-2 border-t border-[#E6E1D5] pt-4">
+                    <Link
+                      to={`/dashboard/medecin/formations/${f.id}`}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                    >
+                      <Eye size={14} /> Voir
+                    </Link>
+                    <Link
+                      to={`/dashboard/medecin/formations/${f.id}/modifier`}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                    >
+                      <Pencil size={14} /> Modifier
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setToDelete(f);
+                      }}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                    >
+                      <Trash2 size={14} /> Supprimer
+                    </button>
                   </div>
                 </div>
               );
@@ -141,6 +222,56 @@ export default function MesFormations() {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmation de suppression */}
+      {toDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h2 className="font-semibold text-[#0F3D3E]">Supprimer la formation ?</h2>
+                <p className="mt-1 text-sm text-[#737873]">
+                  « {toDelete.titre} » sera définitivement supprimée. Cette action est irréversible.
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setToDelete(null)}
+                className="rounded-xl border border-[#E6E1D5] px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] transition hover:bg-[#FAF8F5] disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={confirmDelete}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Suppression...
+                  </>
+                ) : (
+                  "Supprimer"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

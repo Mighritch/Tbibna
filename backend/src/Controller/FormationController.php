@@ -96,6 +96,11 @@ class FormationController extends AbstractController
             return $this->json(['error' => 'Date invalide'], 400);
         }
 
+        if ($formation->getDateDebut() && $formation->getDateFin()
+            && $formation->getDateFin() < $formation->getDateDebut()) {
+            return $this->json(['error' => 'La date de fin doit être après la date de début'], 400);
+        }
+
         $this->dm->persist($formation);
         $this->dm->flush();
 
@@ -136,22 +141,54 @@ class FormationController extends AbstractController
             return $this->json(['error' => 'Accès refusé'], 403);
         }
 
-        $data = json_decode($request->getContent(), true) ?? [];
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return $this->json(['error' => 'Données invalides'], 400);
+        }
 
-        if (isset($data['titre'])) $formation->setTitre($data['titre']);
-        if (isset($data['description'])) $formation->setDescription($data['description']);
-        if (isset($data['duree'])) $formation->setDuree((int) $data['duree']);
-        if (isset($data['prix'])) $formation->setPrix((float) $data['prix']);
-        if (isset($data['gratuit'])) $formation->setGratuit((bool) $data['gratuit']);
-        if (isset($data['objectifs'])) $formation->setObjectifs($data['objectifs']);
+        if (array_key_exists('titre', $data)) {
+            $titre = trim((string) $data['titre']);
+            if ($titre === '') {
+                return $this->json(['error' => 'Le titre est obligatoire'], 400);
+            }
+            $formation->setTitre($titre);
+        }
+
+        if (array_key_exists('description', $data)) {
+            $description = trim((string) $data['description']);
+            if ($description === '') {
+                return $this->json(['error' => 'La description est obligatoire'], 400);
+            }
+            $formation->setDescription($description);
+        }
+
+        if (array_key_exists('duree', $data)) $formation->setDuree((int) $data['duree']);
+        if (array_key_exists('gratuit', $data)) $formation->setGratuit((bool) $data['gratuit']);
+        if (array_key_exists('prix', $data)) $formation->setPrix((float) $data['prix']);
+        if (array_key_exists('objectifs', $data)) $formation->setObjectifs((string) $data['objectifs']);
+
+        // Si gratuite, le prix est forcé à 0
+        if ($formation->isGratuit()) {
+            $formation->setPrix(0);
+        }
 
         try {
-            if (!empty($data['dateDebut'])) $formation->setDateDebut(new \DateTime($data['dateDebut']));
-            if (!empty($data['dateFin'])) $formation->setDateFin(new \DateTime($data['dateFin']));
+            if (array_key_exists('dateDebut', $data)) {
+                $formation->setDateDebut(!empty($data['dateDebut']) ? new \DateTime($data['dateDebut']) : null);
+            }
+            if (array_key_exists('dateFin', $data)) {
+                $formation->setDateFin(!empty($data['dateFin']) ? new \DateTime($data['dateFin']) : null);
+            }
         } catch (\Exception) {
             return $this->json(['error' => 'Date invalide'], 400);
         }
 
+        if ($formation->getDateDebut() && $formation->getDateFin()
+            && $formation->getDateFin() < $formation->getDateDebut()) {
+            return $this->json(['error' => 'La date de fin doit être après la date de début'], 400);
+        }
+
+        // Un médecin qui modifie renvoie la formation en validation
         if (!$this->isGranted('ROLE_ADMIN')) {
             $formation->setStatut(Formation::STATUT_EN_ATTENTE);
         }
