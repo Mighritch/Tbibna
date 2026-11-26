@@ -15,6 +15,7 @@ import CoursEtudiant from "./Components/dashboard/CoursEtudiant";
 import ActivitesEtudiant from "./Components/dashboard/ActiviteEtudiant";
 import ExamensEtudiant from "./Components/dashboard/ExamensEtudiant";
 import PasserExamen from "./Components/dashboard/PasserExamen";
+import FormationsEtudiant from "./Components/dashboard/FormationsEtudiant";
 import MesActivites from "./Components/dashboard/MesActivites";
 import AjouterActivite from "./Components/medecin/AjouterActivite";
 import MesExamens from "./Components/dashboard/MesExamens";
@@ -388,6 +389,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_ETUDIANT"]}>
                 <PasserExamen />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Formations (étudiant) : liste des formations acceptées par l'admin */}
+          <Route
+            path="/dashboard/etudiant/formations"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ETUDIANT"]}>
+                <FormationsEtudiant />
               </ProtectedRoute>
             }
           />
