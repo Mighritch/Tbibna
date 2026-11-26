@@ -27,6 +27,9 @@ import ModifierFormation from "./Components/medecin/ModifierFormation";
 import MesFormations from "./Components/dashboard/MesFormations";
 import AdminFormations from "./Components/dashboard/AdminFormations";
 import AdminDetailFormation from "./Components/dashboard/AdminDetailFormation";
+import MesEvenements from "./Components/dashboard/MesEvenements";
+import AjouterEvenement from "./Components/medecin/AjouterEvenement";
+import AdminEvenements from "./Components/dashboard/AdminEvenements";
 
 import {
   BookOpen,
@@ -393,7 +396,6 @@ function App() {
             }
           />
 
-          {/* Formations (étudiant) : liste des formations acceptées par l'admin */}
           <Route
             path="/dashboard/etudiant/formations"
             element={
@@ -466,7 +468,6 @@ function App() {
             }
           />
 
-          {/* Formations (médecin) : liste, ajout, détails, modification */}
           <Route
             path="/dashboard/medecin/formations"
             element={
@@ -499,6 +500,24 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
                 <ModifierFormation />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/medecin/evenements"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <MesEvenements />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/medecin/evenements/ajouter"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <AjouterEvenement />
               </ProtectedRoute>
             }
           />
@@ -552,6 +571,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <AdminDetailFormation />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/admin/evenements"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <AdminEvenements />
               </ProtectedRoute>
             }
           />

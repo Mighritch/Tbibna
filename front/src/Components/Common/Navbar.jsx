@@ -5,7 +5,6 @@ import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
 const BASE_NAV_LINKS = [
-  { label: "Évènements", href: "#evenements" },
   { label: "À propos", href: "#a-propos" },
 ];
 
@@ -70,6 +69,8 @@ function getNavLinks(user) {
       { label: "Activités", to: "/dashboard/admin/activites" },
       { label: "Examens", to: "/dashboard/admin/examens" },
       { label: "Formations", to: "/dashboard/admin/formations" },
+      { label: "Évènements", to: "/dashboard/admin/evenements" },
+
     ];
   } else if (medecin) {
     links = [
@@ -77,6 +78,7 @@ function getNavLinks(user) {
       { label: "Activités", to: "/dashboard/medecin/activites" },
       { label: "Examens", to: "/dashboard/medecin/examens" },
       { label: "Formations", to: "/dashboard/medecin/formations" },
+      { label: "Évènements", to: "/dashboard/medecin/evenements" },
     ];
   } else if (etudiant) {
     links = [
@@ -86,7 +88,6 @@ function getNavLinks(user) {
       { label: "Formations", to: "/dashboard/etudiant/formations" },
     ];
   } else {
-    // Visiteur non connecté
     links = [
       { label: "Cours", href: "#cours" },
       { label: "Activités", href: "#activites" },
@@ -95,7 +96,11 @@ function getNavLinks(user) {
     ];
   }
 
-  return [...links, ...BASE_NAV_LINKS];
+  const base = medecin
+    ? BASE_NAV_LINKS.filter((l) => l.label !== "Évènements")
+    : BASE_NAV_LINKS;
+
+  return [...links, ...base];
 }
 
 export default function Navbar() {

@@ -27,6 +27,7 @@ const FACULTES_MEDECINE = [
   "Faculté de Médecine de Sousse",
   "Faculté de Médecine de Monastir",
   "Faculté de Médecine de Sfax",
+  "Faculté dentaire de Monastir",
 ];
 
 export default function Profile() {
