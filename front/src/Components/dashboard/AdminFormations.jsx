@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   BookOpen,
   Clock,
@@ -9,6 +10,7 @@ import {
   RefreshCw,
   Calendar,
   User,
+  Eye,
 } from "lucide-react";
 
 const API = "http://localhost:8000/api/formations";
@@ -182,7 +184,12 @@ export default function AdminFormations() {
                   className="flex flex-col rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="line-clamp-2 font-semibold text-[#0F3D3E]">{f.titre}</h3>
+                    <Link
+                      to={`/dashboard/admin/formations/${f.id}`}
+                      className="line-clamp-2 font-semibold text-[#0F3D3E] hover:underline"
+                    >
+                      {f.titre}
+                    </Link>
                     {f.gratuit ? (
                       <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                         Gratuit
@@ -225,39 +232,49 @@ export default function AdminFormations() {
                     </p>
                   )}
 
-                  <div className="mt-5 flex flex-wrap gap-2 border-t border-[#E6E1D5] pt-4">
-                    {busyId === f.id ? (
-                      <Loader2 size={18} className="animate-spin text-[#0F3D3E]" />
-                    ) : (
-                      <>
-                        {statut !== "acceptee" && (
+                  <div className="mt-auto pt-5">
+                    <div className="flex flex-wrap items-center gap-2 border-t border-[#E6E1D5] pt-4">
+                      {busyId === f.id ? (
+                        <Loader2 size={18} className="animate-spin text-[#0F3D3E]" />
+                      ) : (
+                        <>
+                          <Link
+                            to={`/dashboard/admin/formations/${f.id}`}
+                            title="Voir les détails"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#E6E1D5] bg-[#FAF8F5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] hover:bg-[#F3EFE6]"
+                          >
+                            <Eye size={14} /> Détails
+                          </Link>
+
+                          {statut !== "acceptee" && (
+                            <button
+                              type="button"
+                              onClick={() => changeStatut(f.id, "acceptee")}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                            >
+                              <Check size={14} /> Accepter
+                            </button>
+                          )}
+                          {statut !== "refusee" && (
+                            <button
+                              type="button"
+                              onClick={() => changeStatut(f.id, "refusee")}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+                            >
+                              <X size={14} /> Refuser
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => changeStatut(f.id, "acceptee")}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                            onClick={() => remove(f.id)}
+                            title="Supprimer"
+                            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#737873] hover:bg-[#FAF8F5]"
                           >
-                            <Check size={14} /> Accepter
+                            <Trash2 size={14} />
                           </button>
-                        )}
-                        {statut !== "refusee" && (
-                          <button
-                            type="button"
-                            onClick={() => changeStatut(f.id, "refusee")}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
-                          >
-                            <X size={14} /> Refuser
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => remove(f.id)}
-                          title="Supprimer"
-                          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#737873] hover:bg-[#FAF8F5]"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </>
-                    )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

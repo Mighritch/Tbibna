@@ -25,6 +25,7 @@ import DetailFormation from "./Components/medecin/DetailFormation";
 import ModifierFormation from "./Components/medecin/ModifierFormation";
 import MesFormations from "./Components/dashboard/MesFormations";
 import AdminFormations from "./Components/dashboard/AdminFormations";
+import AdminDetailFormation from "./Components/dashboard/AdminDetailFormation";
 
 import {
   BookOpen,
@@ -531,6 +532,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <AdminFormations />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/admin/formations/:id"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <AdminDetailFormation />
               </ProtectedRoute>
             }
           />
