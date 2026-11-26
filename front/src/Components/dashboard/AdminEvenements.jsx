@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Check,
   X,
@@ -9,6 +10,7 @@ import {
   Hourglass,
   CheckCircle2,
   XCircle,
+  Eye,
 } from "lucide-react";
 
 const API = "/api/admin/evenements";
@@ -54,7 +56,6 @@ export default function AdminEvenements() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
 
-  // Chargement initial : les setState sont appelés après la réponse (asynchrone)
   useEffect(() => {
     let cancelled = false;
 
@@ -88,7 +89,6 @@ export default function AdminEvenements() {
       });
       if (!res.ok) throw new Error("L'action a échoué.");
       const maj = await res.json();
-      // l'évènement change de statut => il passe dans l'autre section
       setEvenements((liste) => liste.map((e) => (e.id === maj.id ? maj : e)));
     } catch (e) {
       setError(e.message);
@@ -99,11 +99,10 @@ export default function AdminEvenements() {
 
   const refuser = (id) => {
     const motif = window.prompt("Motif du refus (optionnel) :");
-    if (motif === null) return; // annulé
+    if (motif === null) return;
     decider(id, "refuser", { motif });
   };
 
-  // Regroupement + compteurs
   const parStatut = useMemo(() => {
     const groupes = { en_attente: [], accepte: [], refuse: [] };
     evenements.forEach((e) => {
@@ -122,7 +121,7 @@ export default function AdminEvenements() {
         Évènements proposés par les médecins
       </h1>
       <p className="mt-1 text-sm text-[#737873]">
-        Un évènement n'est visible sur la plateforme qu'après votre acceptation.
+        Un évènement n&apos;est visible sur la plateforme qu&apos;après votre acceptation.
       </p>
 
       {/* Filtres par statut avec compteurs */}
@@ -196,53 +195,61 @@ export default function AdminEvenements() {
               {liste.map((e) => (
                 <article
                   key={e.id}
-                  className="rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm"
+                  className="flex flex-col justify-between rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-[#0F3D3E]">{e.titre}</h3>
-                    <span
-                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${st.cls}`}
-                    >
-                      <StatutIcon size={13} />
-                      {st.label.replace(/s$/, "")}
-                    </span>
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-[#0F3D3E]">{e.titre}</h3>
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${st.cls}`}
+                      >
+                        <StatutIcon size={13} />
+                        {st.label.replace(/s$/, "")}
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-xs text-[#737873]">
+                      Proposé par <strong>{e.auteurNom || "—"}</strong>
+                    </p>
+
+                    <p className="mt-3 line-clamp-3 text-sm text-[#4A4D4A]">{e.description}</p>
+
+                    <ul className="mt-4 space-y-1.5 text-sm text-[#4A4D4A]">
+                      <li className="flex items-center gap-2">
+                        <Calendar size={15} /> {fmt(e.dateDebut)} → {fmt(e.dateFin)}
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Clock size={15} /> {e.duree} h
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <MapPin size={15} /> {e.localisation}
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Users size={15} /> {e.nombreDeParticipant} participants —{" "}
+                        {e.prix > 0 ? `${e.prix} DT` : "Gratuit"}
+                      </li>
+                    </ul>
+
+                    {e.statut === "refuse" && e.motifRefus && (
+                      <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                        Motif : {e.motifRefus}
+                      </p>
+                    )}
+
+                    {e.statut !== "en_attente" && e.dateDecision && (
+                      <p className="mt-3 text-xs text-[#737873]">
+                        Décision du {fmt(e.dateDecision)}
+                      </p>
+                    )}
                   </div>
 
-                  <p className="mt-1 text-xs text-[#737873]">
-                    Proposé par <strong>{e.auteurNom || "—"}</strong>
-                  </p>
-
-                  <p className="mt-3 text-sm text-[#4A4D4A]">{e.description}</p>
-
-                  <ul className="mt-4 space-y-1.5 text-sm text-[#4A4D4A]">
-                    <li className="flex items-center gap-2">
-                      <Calendar size={15} /> {fmt(e.dateDebut)} → {fmt(e.dateFin)}
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Clock size={15} /> {e.duree} h
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <MapPin size={15} /> {e.localisation}
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Users size={15} /> {e.nombreDeParticipant} participants —{" "}
-                      {e.prix > 0 ? `${e.prix} DT` : "Gratuit"}
-                    </li>
-                  </ul>
-
-                  {e.statut === "refuse" && e.motifRefus && (
-                    <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-                      Motif : {e.motifRefus}
-                    </p>
-                  )}
-
-                  {e.statut !== "en_attente" && e.dateDecision && (
-                    <p className="mt-3 text-xs text-[#737873]">
-                      Décision du {fmt(e.dateDecision)}
-                    </p>
-                  )}
-
-                  <div className="mt-5 flex gap-3">
+                  <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[#E6E1D5] pt-4">
+                    <Link
+                      to={`/dashboard/admin/evenements/${e.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#0F3D3E]/20 bg-[#FAF8F5] px-4 py-2 text-sm font-semibold text-[#0F3D3E] transition hover:bg-[#0F3D3E] hover:text-white"
+                    >
+                      <Eye size={16} /> Détails
+                    </Link>
                     {e.statut !== "accepte" && (
                       <button
                         type="button"

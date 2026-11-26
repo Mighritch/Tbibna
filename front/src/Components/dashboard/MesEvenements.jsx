@@ -11,6 +11,7 @@ import {
   Hourglass,
   Pencil,
   Trash2,
+  Eye,
 } from "lucide-react";
 
 const fmt = (iso) =>
@@ -174,7 +175,13 @@ export default function MesEvenements() {
                 </div>
               </div>
 
-              <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#E6E1D5] pt-4">
+              <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-[#E6E1D5] pt-4">
+                <Link
+                  to={`/dashboard/medecin/evenements/${e.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A6B59]/25 bg-[#EBF3F0]/60 px-3 py-2 text-xs font-semibold text-[#2A6B59] transition hover:bg-[#2A6B59] hover:text-white"
+                >
+                  <Eye size={14} /> Détails
+                </Link>
                 <Link
                   to={`/dashboard/medecin/evenements/modifier/${e.id}`}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-[#0F3D3E]/20 bg-[#FAF8F5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#0F3D3E] hover:text-white"

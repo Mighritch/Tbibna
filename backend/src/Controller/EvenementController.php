@@ -14,10 +14,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/api')]
 class EvenementController extends AbstractController
 {
-    /* ------------------------------------------------------------------ */
-    /*  PUBLIC : évènements acceptés uniquement                            */
-    /* ------------------------------------------------------------------ */
-
     #[Route('/evenements/publies', name: 'api_evenement_publies', methods: ['GET'])]
     public function publies(EvenementRepository $repo): JsonResponse
     {
@@ -26,9 +22,29 @@ class EvenementController extends AbstractController
         );
     }
 
-    /* ------------------------------------------------------------------ */
-    /*  MÉDECIN                                                            */
-    /* ------------------------------------------------------------------ */
+    #[Route('/evenements/{id}', name: 'api_evenement_show', methods: ['GET'])]
+    public function show(string $id, EvenementRepository $repo): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_MEDECIN') && !$this->isGranted('ROLE_ADMIN')) {
+            return $this->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        $evenement = $repo->find($id);
+
+        if (!$evenement) {
+            return $this->json(['message' => 'Évènement introuvable.'], 404);
+        }
+
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            [$auteurId] = $this->auteur();
+
+            if ($evenement->getAuteurId() !== $auteurId) {
+                return $this->json(['message' => 'Accès refusé à cet évènement.'], 403);
+            }
+        }
+
+        return $this->json($this->serialize($evenement));
+    }
 
     #[Route('/evenements', name: 'api_evenement_index', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
@@ -37,24 +53,9 @@ class EvenementController extends AbstractController
         [$auteurId] = $this->auteur();
         $evenements = $repo->findByAuteur($auteurId);
 
-        return $this->json(array_map(fn (Evenement $e) => $this->serialize($e), $evenements));
-    }
-
-    #[Route('/evenements/{id}', name: 'api_evenement_show', methods: ['GET'])]
-    #[IsGranted('ROLE_MEDECIN')]
-    public function show(string $id, EvenementRepository $repo): JsonResponse
-    {
-        $evenement = $repo->find($id);
-        if (!$evenement) {
-            return $this->json(['message' => 'Évènement introuvable.'], 404);
-        }
-
-        [$auteurId] = $this->auteur();
-        if ($evenement->getAuteurId() !== $auteurId) {
-            return $this->json(['message' => 'Accès refusé à cet évènement.'], 403);
-        }
-
-        return $this->json($this->serialize($evenement));
+        return $this->json(
+            array_map(fn (Evenement $e) => $this->serialize($e), $evenements)
+        );
     }
 
     #[Route('/evenements', name: 'api_evenement_new', methods: ['POST'])]
@@ -68,8 +69,12 @@ class EvenementController extends AbstractController
         }
 
         $validated = $this->validatePayload($data);
+
         if (isset($validated['errors'])) {
-            return $this->json(['message' => 'Formulaire invalide.', 'errors' => $validated['errors']], 422);
+            return $this->json([
+                'message' => 'Formulaire invalide.',
+                'errors' => $validated['errors']
+            ], 422);
         }
 
         [$auteurId, $auteurNom] = $this->auteur();
@@ -87,6 +92,7 @@ class EvenementController extends AbstractController
             ->setStatut(Evenement::STATUT_EN_ATTENTE);
 
         $secondes = $validated['fin']->getTimestamp() - $validated['debut']->getTimestamp();
+
         $evenement->setDuree((int) ceil($secondes / 3600));
 
         $dm->persist($evenement);
@@ -97,16 +103,24 @@ class EvenementController extends AbstractController
 
     #[Route('/evenements/{id}', name: 'api_evenement_edit', methods: ['PUT'])]
     #[IsGranted('ROLE_MEDECIN')]
-    public function update(string $id, Request $request, EvenementRepository $repo, DocumentManager $dm): JsonResponse
-    {
+    public function update(
+        string $id,
+        Request $request,
+        EvenementRepository $repo,
+        DocumentManager $dm
+    ): JsonResponse {
         $evenement = $repo->find($id);
+
         if (!$evenement) {
             return $this->json(['message' => 'Évènement introuvable.'], 404);
         }
 
         [$auteurId] = $this->auteur();
+
         if ($evenement->getAuteurId() !== $auteurId) {
-            return $this->json(['message' => 'Vous ne pouvez modifier que vos propres évènements.'], 403);
+            return $this->json([
+                'message' => 'Vous ne pouvez modifier que vos propres évènements.'
+            ], 403);
         }
 
         try {
@@ -116,8 +130,12 @@ class EvenementController extends AbstractController
         }
 
         $validated = $this->validatePayload($data);
+
         if (isset($validated['errors'])) {
-            return $this->json(['message' => 'Formulaire invalide.', 'errors' => $validated['errors']], 422);
+            return $this->json([
+                'message' => 'Formulaire invalide.',
+                'errors' => $validated['errors']
+            ], 422);
         }
 
         $secondes = $validated['fin']->getTimestamp() - $validated['debut']->getTimestamp();
@@ -131,7 +149,6 @@ class EvenementController extends AbstractController
             ->setLocalisation($validated['localisation'])
             ->setNombreDeParticipant($validated['nombre'])
             ->setPrix($validated['prix'])
-            // Toute modification repasse l'évènement en attente de validation admin
             ->setStatut(Evenement::STATUT_EN_ATTENTE)
             ->setMotifRefus(null)
             ->setDateDecision(null);
@@ -143,34 +160,44 @@ class EvenementController extends AbstractController
 
     #[Route('/evenements/{id}', name: 'api_evenement_delete', methods: ['DELETE'])]
     #[IsGranted('ROLE_MEDECIN')]
-    public function delete(string $id, EvenementRepository $repo, DocumentManager $dm): JsonResponse
-    {
+    public function delete(
+        string $id,
+        EvenementRepository $repo,
+        DocumentManager $dm
+    ): JsonResponse {
         $evenement = $repo->find($id);
+
         if (!$evenement) {
             return $this->json(['message' => 'Évènement introuvable.'], 404);
         }
 
         [$auteurId] = $this->auteur();
+
         if ($evenement->getAuteurId() !== $auteurId) {
-            return $this->json(['message' => 'Vous ne pouvez supprimer que vos propres évènements.'], 403);
+            return $this->json([
+                'message' => 'Vous ne pouvez supprimer que vos propres évènements.'
+            ], 403);
         }
 
         $dm->remove($evenement);
         $dm->flush();
 
-        return $this->json(['message' => 'Évènement supprimé avec succès.']);
+        return $this->json([
+            'message' => 'Évènement supprimé avec succès.'
+        ]);
     }
-
-    /* ------------------------------------------------------------------ */
-    /*  ADMIN                                                              */
-    /* ------------------------------------------------------------------ */
 
     #[Route('/admin/evenements', name: 'api_admin_evenement_index', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
     public function adminIndex(Request $request, EvenementRepository $repo): JsonResponse
     {
         $statut = $request->query->get('statut');
-        $valides = [Evenement::STATUT_EN_ATTENTE, Evenement::STATUT_ACCEPTE, Evenement::STATUT_REFUSE];
+
+        $valides = [
+            Evenement::STATUT_EN_ATTENTE,
+            Evenement::STATUT_ACCEPTE,
+            Evenement::STATUT_REFUSE
+        ];
 
         if ($statut !== null && !in_array($statut, $valides, true)) {
             return $this->json(['message' => 'Statut invalide.'], 400);
@@ -178,14 +205,20 @@ class EvenementController extends AbstractController
 
         $evenements = $repo->findForAdmin($statut);
 
-        return $this->json(array_map(fn (Evenement $e) => $this->serialize($e), $evenements));
+        return $this->json(
+            array_map(fn (Evenement $e) => $this->serialize($e), $evenements)
+        );
     }
 
     #[Route('/admin/evenements/{id}/accepter', name: 'api_admin_evenement_accepter', methods: ['PATCH'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function accepter(string $id, EvenementRepository $repo, DocumentManager $dm): JsonResponse
-    {
+    public function accepter(
+        string $id,
+        EvenementRepository $repo,
+        DocumentManager $dm
+    ): JsonResponse {
         $evenement = $repo->find($id);
+
         if (!$evenement) {
             return $this->json(['message' => 'Évènement introuvable.'], 404);
         }
@@ -202,9 +235,14 @@ class EvenementController extends AbstractController
 
     #[Route('/admin/evenements/{id}/refuser', name: 'api_admin_evenement_refuser', methods: ['PATCH'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function refuser(string $id, Request $request, EvenementRepository $repo, DocumentManager $dm): JsonResponse
-    {
+    public function refuser(
+        string $id,
+        Request $request,
+        EvenementRepository $repo,
+        DocumentManager $dm
+    ): JsonResponse {
         $evenement = $repo->find($id);
+
         if (!$evenement) {
             return $this->json(['message' => 'Évènement introuvable.'], 404);
         }
@@ -227,10 +265,6 @@ class EvenementController extends AbstractController
         return $this->json($this->serialize($evenement));
     }
 
-    /* ------------------------------------------------------------------ */
-    /*  Helpers                                                            */
-    /* ------------------------------------------------------------------ */
-
     private function validatePayload(array $data): array
     {
         $errors = [];
@@ -241,19 +275,38 @@ class EvenementController extends AbstractController
             }
         }
 
-        $debut = $this->parseDate($data['dateDebut'] ?? null, 'dateDebut', 'La date de début', $errors);
-        $fin   = $this->parseDate($data['dateFin'] ?? null, 'dateFin', 'La date de fin', $errors);
+        $debut = $this->parseDate(
+            $data['dateDebut'] ?? null,
+            'dateDebut',
+            'La date de début',
+            $errors
+        );
+
+        $fin = $this->parseDate(
+            $data['dateFin'] ?? null,
+            'dateFin',
+            'La date de fin',
+            $errors
+        );
 
         if ($debut && $fin && $fin <= $debut) {
             $errors['dateFin'] = 'La date de fin doit être postérieure à la date de début.';
         }
 
-        $nombre = filter_var($data['nombreDeParticipant'] ?? null, FILTER_VALIDATE_INT);
+        $nombre = filter_var(
+            $data['nombreDeParticipant'] ?? null,
+            FILTER_VALIDATE_INT
+        );
+
         if ($nombre === false || $nombre < 1) {
             $errors['nombreDeParticipant'] = 'Le nombre de participants doit être supérieur à 0.';
         }
 
-        $prix = filter_var($data['prix'] ?? null, FILTER_VALIDATE_FLOAT);
+        $prix = filter_var(
+            $data['prix'] ?? null,
+            FILTER_VALIDATE_FLOAT
+        );
+
         if ($prix === false || $prix < 0) {
             $errors['prix'] = 'Le prix ne peut pas être négatif.';
         }
@@ -273,22 +326,31 @@ class EvenementController extends AbstractController
         ];
     }
 
-    /** @return array{0: string, 1: string} [id, nom complet] de l'utilisateur connecté */
     private function auteur(): array
     {
         $u = $this->getUser();
 
-        $id = method_exists($u, 'getId') ? (string) $u->getId() : $u->getUserIdentifier();
+        $id = method_exists($u, 'getId')
+            ? (string) $u->getId()
+            : $u->getUserIdentifier();
+
         $nom = trim(
             (method_exists($u, 'getPrenom') ? (string) $u->getPrenom() : '') . ' ' .
             (method_exists($u, 'getNom') ? (string) $u->getNom() : '')
         );
 
-        return [$id, $nom !== '' ? $nom : $u->getUserIdentifier()];
+        return [
+            $id,
+            $nom !== '' ? $nom : $u->getUserIdentifier()
+        ];
     }
 
-    private function parseDate(mixed $value, string $key, string $label, array &$errors): ?\DateTime
-    {
+    private function parseDate(
+        mixed $value,
+        string $key,
+        string $label,
+        array &$errors
+    ): ?\DateTime {
         if (empty($value)) {
             $errors[$key] = "$label est obligatoire.";
             return null;

@@ -30,6 +30,7 @@ import AdminDetailFormation from "./Components/dashboard/AdminDetailFormation";
 import MesEvenements from "./Components/dashboard/MesEvenements";
 import AjouterEvenement from "./Components/medecin/AjouterEvenement";
 import ModifierEvenement from "./Components/medecin/ModifierEvenement";
+import DetailEvenement from "./Components/medecin/DetailEvenement";
 import AdminEvenements from "./Components/dashboard/AdminEvenements";
 
 import {
@@ -533,6 +534,15 @@ function App() {
           />
 
           <Route
+            path="/dashboard/medecin/evenements/:id"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <DetailEvenement />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/dashboard/admin"
             element={
               <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
@@ -590,6 +600,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <AdminEvenements />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/admin/evenements/:id"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <DetailEvenement isAdmin />
               </ProtectedRoute>
             }
           />
