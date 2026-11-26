@@ -8,6 +8,10 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
 #[ODM\Document(collection: "formations", repositoryClass: FormationRepository::class)]
 class Formation
 {
+    public const STATUT_EN_ATTENTE = 'en_attente';
+    public const STATUT_ACCEPTEE = 'acceptee';
+    public const STATUT_REFUSEE = 'refusee';
+
     #[ODM\Id]
     private ?string $id = null;
 
@@ -16,9 +20,6 @@ class Formation
 
     #[ODM\Field(type: "string")]
     private ?string $description = null;
-
-    #[ODM\Field(type: "string")]
-    private ?string $langage = null;
 
     #[ODM\Field(type: "int")]
     private ?int $duree = null;
@@ -37,6 +38,14 @@ class Formation
 
     #[ODM\Field(type: "string")]
     private ?string $objectifs = null;
+
+    // Statut de validation de la formation
+    #[ODM\Field(type: "string")]
+    private string $statut = self::STATUT_EN_ATTENTE;
+
+    // Identifiant (email) du médecin qui a créé la formation
+    #[ODM\Field(type: "string", nullable: true)]
+    private ?string $createdBy = null;
 
     public function getId(): ?string
     {
@@ -62,17 +71,6 @@ class Formation
     public function setDescription(string $description): static
     {
         $this->description = $description;
-        return $this;
-    }
-
-    public function getLangage(): ?string
-    {
-        return $this->langage;
-    }
-
-    public function setLangage(string $langage): static
-    {
-        $this->langage = $langage;
         return $this;
     }
 
@@ -139,6 +137,28 @@ class Formation
     public function setObjectifs(string $objectifs): static
     {
         $this->objectifs = $objectifs;
+        return $this;
+    }
+
+    public function getStatut(): string
+    {
+        return $this->statut;
+    }
+
+    public function setStatut(string $statut): self
+    {
+        $this->statut = $statut;
+        return $this;
+    }
+
+    public function getCreatedBy(): ?string
+    {
+        return $this->createdBy;
+    }
+
+    public function setCreatedBy(?string $createdBy): self
+    {
+        $this->createdBy = $createdBy;
         return $this;
     }
 }

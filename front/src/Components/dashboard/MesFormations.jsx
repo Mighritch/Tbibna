@@ -2,20 +2,26 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, BookOpen, Clock } from "lucide-react";
 
+const STATUT_UI = {
+  en_attente: { label: "En attente de validation", cls: "bg-amber-100 text-amber-700" },
+  acceptee: { label: "Acceptée", cls: "bg-green-100 text-green-700" },
+  refusee: { label: "Refusée", cls: "bg-red-100 text-red-700" },
+};
+
 export default function MesFormations() {
   const [formations, setFormations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchFormations = async () => {
-      try {
-        const res = await fetch("http://localhost:8000/api/formations", {
-          method: "GET",
-          credentials: "include", // envoie le cookie de session
-          headers: { Accept: "application/json" },
-        });
+    let cancelled = false;
 
+    fetch("http://localhost:8000/api/formations/mes-formations", {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    })
+      .then((res) => {
         if (res.status === 401) {
           throw new Error("Non connecté. Veuillez vous reconnecter.");
         }
@@ -25,18 +31,22 @@ export default function MesFormations() {
         if (!res.ok) {
           throw new Error("Erreur lors du chargement des formations.");
         }
-
-        const data = await res.json();
-        setFormations(Array.isArray(data) ? data : []);
-      } catch (err) {
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) setFormations(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
         console.error(err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    fetchFormations();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
@@ -56,13 +66,13 @@ export default function MesFormations() {
               Mes formations
             </h1>
             <p className="text-sm text-[#737873]">
-              Gérez les formations que vous avez créées
+              Une formation n'est visible par les étudiants qu'après validation par l'administrateur
             </p>
           </div>
 
           <Link
             to="/dashboard/medecin/formations/ajouter"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#082829] transition"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#082829]"
           >
             <Plus size={18} />
             Nouvelle formation
@@ -88,40 +98,46 @@ export default function MesFormations() {
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {formations.map((f) => (
-              <div
-                key={f.id}
-                className="rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="line-clamp-2 font-semibold text-[#0F3D3E]">
-                    {f.titre}
-                  </h3>
-                  {f.gratuit ? (
-                    <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                      Gratuit
+            {formations.map((f) => {
+              const statut = STATUT_UI[f.statut] || STATUT_UI.en_attente;
+              return (
+                <div
+                  key={f.id}
+                  className="rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
+                >
+                  <div className="mb-3">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statut.cls}`}>
+                      {statut.label}
                     </span>
-                  ) : (
-                    <span className="whitespace-nowrap rounded-full bg-[#FAF8F5] px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
-                      {f.prix} DT
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="line-clamp-2 font-semibold text-[#0F3D3E]">
+                      {f.titre}
+                    </h3>
+                    {f.gratuit ? (
+                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        Gratuit
+                      </span>
+                    ) : (
+                      <span className="whitespace-nowrap rounded-full bg-[#FAF8F5] px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
+                        {f.prix} DT
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="mt-2 line-clamp-2 text-sm text-[#737873]">
+                    {f.description}
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#737873]">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock size={14} /> {f.duree}h
                     </span>
-                  )}
+                  </div>
                 </div>
-
-                <p className="mt-2 line-clamp-2 text-sm text-[#737873]">
-                  {f.description}
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#737873]">
-                  <span className="inline-flex items-center gap-1">
-                    <BookOpen size={14} /> {f.langage}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock size={14} /> {f.duree}h
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

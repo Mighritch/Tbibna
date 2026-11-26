@@ -22,6 +22,7 @@ import AjouterExamen from "./Components/medecin/AjouterExamen";
 import AdminExamens from "./Components/dashboard/AdminExamens";
 import AjouterFormation from "./Components/medecin/AjouterFormation";
 import MesFormations from "./Components/dashboard/MesFormations";
+import AdminFormations from "./Components/dashboard/AdminFormations";
 
 import {
   BookOpen,
@@ -500,6 +501,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <AdminExamens />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/admin/formations"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <AdminFormations />
               </ProtectedRoute>
             }
           />

@@ -69,6 +69,7 @@ function getNavLinks(user) {
       { label: "Cours", to: "/dashboard/admin/cours" },
       { label: "Activités", to: "/dashboard/admin/activites" },
       { label: "Examens", to: "/dashboard/admin/examens" },
+      { label: "Formations", to: "/dashboard/admin/formations" },
     ];
   } else if (medecin) {
     links = [
@@ -82,6 +83,7 @@ function getNavLinks(user) {
       { label: "Cours", to: "/dashboard/etudiant/cours" },
       { label: "Activités", to: "/dashboard/etudiant/activites" },
       { label: "Examens", to: "/dashboard/etudiant/examens" },
+      { label: "Formations", to: "/dashboard/etudiant/formations" },
     ];
   } else {
     // Visiteur non connecté

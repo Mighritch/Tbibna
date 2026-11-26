@@ -15,7 +15,6 @@ export default function AjouterFormation() {
   const [form, setForm] = useState({
     titre: "",
     description: "",
-    langage: "",
     duree: "",
     dateDebut: "",
     dateFin: "",
@@ -144,34 +143,19 @@ export default function AjouterFormation() {
               />
             </div>
 
-            {/* Langage + Durée */}
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div>
-                <label className={labelClass}>Langage / Technologie *</label>
-                <input
-                  type="text"
-                  name="langage"
-                  required
-                  value={form.langage}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="Ex: JavaScript, PHP, Python..."
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Durée (heures) *</label>
-                <input
-                  type="number"
-                  name="duree"
-                  required
-                  min="1"
-                  value={form.duree}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="Ex: 40"
-                />
-              </div>
+            {/* Durée */}
+            <div>
+              <label className={labelClass}>Durée (heures) *</label>
+              <input
+                type="number"
+                name="duree"
+                required
+                min="1"
+                value={form.duree}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="Ex: 40"
+              />
             </div>
 
             {/* Dates */}
