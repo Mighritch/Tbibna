@@ -29,6 +29,7 @@ import AdminFormations from "./Components/dashboard/AdminFormations";
 import AdminDetailFormation from "./Components/dashboard/AdminDetailFormation";
 import MesEvenements from "./Components/dashboard/MesEvenements";
 import AjouterEvenement from "./Components/medecin/AjouterEvenement";
+import ModifierEvenement from "./Components/medecin/ModifierEvenement";
 import AdminEvenements from "./Components/dashboard/AdminEvenements";
 
 import {
@@ -518,6 +519,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
                 <AjouterEvenement />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/medecin/evenements/modifier/:id"
+            element={
+              <ProtectedRoute allowedRoles={["ROLE_MEDECIN"]}>
+                <ModifierEvenement />
               </ProtectedRoute>
             }
           />
