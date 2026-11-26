@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Target,
   User,
+  Heart,
 } from "lucide-react";
 
 const API = "http://localhost:8000/api/formations";
@@ -32,12 +33,14 @@ export default function FormationsEtudiant() {
   const [formations, setFormations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [togglingIds, setTogglingIds] = useState({});
 
   // Filtres et tris
   const [searchQuery, setSearchQuery] = useState("");
   const [sortPrix, setSortPrix] = useState("");
   const [dateDebutFilter, setDateDebutFilter] = useState("");
   const [dateFinFilter, setDateFinFilter] = useState("");
+  const [onlyFavoris, setOnlyFavoris] = useState(false);
 
   const dateDebutInputRef = useRef(null);
   const dateFinInputRef = useRef(null);
@@ -79,6 +82,76 @@ export default function FormationsEtudiant() {
     };
   }, []);
 
+  const handleToggleFavori = async (e, formation) => {
+    if (e) e.stopPropagation();
+    if (togglingIds[formation.id]) return;
+
+    const previousState = Boolean(formation.isFavori);
+    const optimisticState = !previousState;
+
+    // Mise à jour optimiste
+    setTogglingIds((prev) => ({ ...prev, [formation.id]: true }));
+    setFormations((prev) =>
+      prev.map((item) =>
+        item.id === formation.id ? { ...item, isFavori: optimisticState } : item
+      )
+    );
+    setSelectedFormation((prev) =>
+      prev && prev.id === formation.id
+        ? { ...prev, isFavori: optimisticState }
+        : prev
+    );
+
+    try {
+      const res = await fetch(`${API}/${formation.id}/favori`, {
+        method: "POST",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("Veuillez vous connecter pour ajouter aux favoris.");
+      }
+      if (!res.ok) {
+        throw new Error("Impossible de mettre à jour les favoris.");
+      }
+
+      const updated = await res.json();
+      setFormations((prev) =>
+        prev.map((item) =>
+          item.id === formation.id
+            ? { ...item, isFavori: Boolean(updated.isFavori) }
+            : item
+        )
+      );
+      setSelectedFormation((prev) =>
+        prev && prev.id === formation.id
+          ? { ...prev, isFavori: Boolean(updated.isFavori) }
+          : prev
+      );
+    } catch (err) {
+      console.error(err);
+      // Rollback en cas d'erreur
+      setFormations((prev) =>
+        prev.map((item) =>
+          item.id === formation.id ? { ...item, isFavori: previousState } : item
+        )
+      );
+      setSelectedFormation((prev) =>
+        prev && prev.id === formation.id
+          ? { ...prev, isFavori: previousState }
+          : prev
+      );
+      alert(err.message);
+    } finally {
+      setTogglingIds((prev) => {
+        const copy = { ...prev };
+        delete copy[formation.id];
+        return copy;
+      });
+    }
+  };
+
   const openCalendar = (ref) => {
     if (!ref.current) return;
     if (typeof ref.current.showPicker === "function") {
@@ -107,8 +180,12 @@ export default function FormationsEtudiant() {
     setDateDebutFilter("");
   };
 
+  const favorisCount = formations.filter((f) => f.isFavori).length;
+
   // Filtrage
   const filteredFormations = formations.filter((f) => {
+    if (onlyFavoris && !f.isFavori) return false;
+
     const matchTitre = f.titre
       ?.toLowerCase()
       .includes(searchQuery.trim().toLowerCase());
@@ -146,7 +223,7 @@ export default function FormationsEtudiant() {
   });
 
   const hasActiveFilter = Boolean(
-    searchQuery || sortPrix || dateDebutFilter || dateFinFilter
+    searchQuery || sortPrix || dateDebutFilter || dateFinFilter || onlyFavoris
   );
 
   const resetAllFilters = () => {
@@ -154,6 +231,7 @@ export default function FormationsEtudiant() {
     setSortPrix("");
     setDateDebutFilter("");
     setDateFinFilter("");
+    setOnlyFavoris(false);
   };
 
   if (loading) {
@@ -204,6 +282,36 @@ export default function FormationsEtudiant() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {/* Filtre Favoris */}
+              <button
+                type="button"
+                onClick={() => setOnlyFavoris((prev) => !prev)}
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-medium shadow-sm transition sm:w-auto ${
+                  onlyFavoris
+                    ? "border-rose-300 bg-rose-50 text-rose-700"
+                    : "border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+                }`}
+              >
+                <Heart
+                  size={15}
+                  className={
+                    onlyFavoris
+                      ? "fill-rose-500 text-rose-500"
+                      : "text-[#737873]"
+                  }
+                />
+                <span>Mes favoris</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                    onlyFavoris
+                      ? "bg-rose-200/70 text-rose-800"
+                      : "bg-[#FAF8F5] text-[#737873]"
+                  }`}
+                >
+                  {favorisCount}
+                </span>
+              </button>
+
               {/* Tarif */}
               <div className="relative w-full sm:w-auto">
                 <ArrowUpDown
@@ -338,7 +446,9 @@ export default function FormationsEtudiant() {
           <div className="rounded-2xl border border-dashed border-[#E6E1D5] bg-white py-16 text-center">
             <Filter className="mx-auto h-10 w-10 text-[#737873]" />
             <p className="mt-4 text-[#737873]">
-              Aucune formation trouvée avec les critères sélectionnés.
+              {onlyFavoris && favorisCount === 0
+                ? "Vous n'avez pas encore ajouté de formation à vos favoris."
+                : "Aucune formation trouvée avec les critères sélectionnés."}
             </p>
             {hasActiveFilter && (
               <button
@@ -358,19 +468,48 @@ export default function FormationsEtudiant() {
                 className="flex flex-col justify-between rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
               >
                 <div>
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-3 flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                       <CheckCircle2 size={12} /> Validée
                     </span>
-                    {f.gratuit ? (
-                      <span className="rounded-full bg-[#EBF3F0] px-2.5 py-0.5 text-xs font-semibold text-[#2A6B59]">
-                        Gratuit
-                      </span>
-                    ) : (
-                      <span className="whitespace-nowrap rounded-full bg-[#FAF8F5] px-2.5 py-0.5 text-xs font-semibold text-[#0F3D3E]">
-                        {f.prix} DT
-                      </span>
-                    )}
+
+                    <div className="flex items-center gap-2">
+                      {f.gratuit ? (
+                        <span className="rounded-full bg-[#EBF3F0] px-2.5 py-0.5 text-xs font-semibold text-[#2A6B59]">
+                          Gratuit
+                        </span>
+                      ) : (
+                        <span className="whitespace-nowrap rounded-full bg-[#FAF8F5] px-2.5 py-0.5 text-xs font-semibold text-[#0F3D3E]">
+                          {f.prix} DT
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleFavori(e, f)}
+                        disabled={Boolean(togglingIds[f.id])}
+                        aria-label={
+                          f.isFavori
+                            ? "Retirer des favoris"
+                            : "Ajouter aux favoris"
+                        }
+                        title={
+                          f.isFavori
+                            ? "Retirer des favoris"
+                            : "Ajouter aux favoris"
+                        }
+                        className={`rounded-full border p-1.5 transition ${
+                          f.isFavori
+                            ? "border-rose-200 bg-rose-50 text-rose-500 hover:bg-rose-100"
+                            : "border-[#E6E1D5] bg-white text-[#737873] hover:border-rose-200 hover:text-rose-500"
+                        }`}
+                      >
+                        <Heart
+                          size={15}
+                          className={f.isFavori ? "fill-rose-500" : ""}
+                        />
+                      </button>
+                    </div>
                   </div>
 
                   <h3 className="line-clamp-2 font-semibold text-[#0F3D3E]">
@@ -501,7 +640,28 @@ export default function FormationsEtudiant() {
               )}
             </div>
 
-            <div className="mt-6 flex justify-end border-t border-[#E6E1D5] pt-4">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#E6E1D5] pt-4">
+              <button
+                type="button"
+                onClick={(e) => handleToggleFavori(e, selectedFormation)}
+                disabled={Boolean(togglingIds[selectedFormation.id])}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+                  selectedFormation.isFavori
+                    ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                    : "border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+                }`}
+              >
+                <Heart
+                  size={16}
+                  className={
+                    selectedFormation.isFavori ? "fill-rose-500 text-rose-500" : ""
+                  }
+                />
+                {selectedFormation.isFavori
+                  ? "Retirer des favoris"
+                  : "Ajouter aux favoris"}
+              </button>
+
               <button
                 type="button"
                 onClick={() => setSelectedFormation(null)}

@@ -47,6 +47,10 @@ class Formation
     #[ODM\Field(type: "string", nullable: true)]
     private ?string $createdBy = null;
 
+    // Liste des identifiants (emails) des étudiants ayant mis cette formation en favori
+    #[ODM\Field(type: "collection")]
+    private array $favorisBy = [];
+
     public function getId(): ?string
     {
         return $this->id;
@@ -91,10 +95,10 @@ class Formation
     }
 
     public function setDateDebut(?\DateTime $dateDebut): static
-{
-    $this->dateDebut = $dateDebut;
-    return $this;
-}
+    {
+        $this->dateDebut = $dateDebut;
+        return $this;
+    }
 
     public function getDateFin(): ?\DateTime
     {
@@ -102,10 +106,10 @@ class Formation
     }
 
     public function setDateFin(?\DateTime $dateFin): static
-{
-    $this->dateFin = $dateFin;
-    return $this;
-}
+    {
+        $this->dateFin = $dateFin;
+        return $this;
+    }
 
     public function getPrix(): ?float
     {
@@ -160,5 +164,31 @@ class Formation
     {
         $this->createdBy = $createdBy;
         return $this;
+    }
+
+    public function getFavorisBy(): array
+    {
+        return $this->favorisBy;
+    }
+
+    public function isFavoriBy(?string $userIdentifier): bool
+    {
+        if (!$userIdentifier) {
+            return false;
+        }
+        return in_array($userIdentifier, $this->favorisBy, true);
+    }
+
+    public function toggleFavori(string $userIdentifier): bool
+    {
+        if ($this->isFavoriBy($userIdentifier)) {
+            $this->favorisBy = array_values(
+                array_filter($this->favorisBy, fn(string $id) => $id !== $userIdentifier)
+            );
+            return false;
+        }
+
+        $this->favorisBy[] = $userIdentifier;
+        return true;
     }
 }

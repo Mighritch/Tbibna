@@ -28,6 +28,18 @@ class FormationRepository extends ServiceDocumentRepository
         return $this->findBy(['createdBy' => $identifier], ['id' => 'desc']);
     }
 
+    /** Formations acceptées mises en favoris par un utilisateur */
+    public function findFavorisByUser(string $identifier): array
+    {
+        return $this->findBy(
+            [
+                'statut' => Formation::STATUT_ACCEPTEE,
+                'favorisBy' => $identifier,
+            ],
+            ['id' => 'desc']
+        );
+    }
+
     /** Pour l'admin : toutes, ou filtrées par statut */
     public function findForAdmin(?string $statut = null): array
     {

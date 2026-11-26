@@ -34,6 +34,16 @@ class FormationController extends AbstractController
         return $this->json(array_map(fn(Formation $f) => $this->serialize($f), $formations));
     }
 
+    /** Liste des formations favorites de l'utilisateur connecté */
+    #[Route('/mes-favoris', name: 'api_formations_favoris', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function favoris(): JsonResponse
+    {
+        $formations = $this->repository->findFavorisByUser($this->getUser()->getUserIdentifier());
+
+        return $this->json(array_map(fn(Formation $f) => $this->serialize($f), $formations));
+    }
+
     /** Formations du médecin connecté (tous statuts) */
     #[Route('/mes-formations', name: 'api_formations_mine', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
@@ -82,7 +92,7 @@ class FormationController extends AbstractController
             ->setPrix((float) ($data['prix'] ?? 0))
             ->setGratuit((bool) ($data['gratuit'] ?? false))
             ->setObjectifs($data['objectifs'] ?? '')
-            ->setStatut(Formation::STATUT_EN_ATTENTE) // toujours en attente
+            ->setStatut(Formation::STATUT_EN_ATTENTE)
             ->setCreatedBy($this->getUser()->getUserIdentifier());
 
         try {
@@ -120,6 +130,24 @@ class FormationController extends AbstractController
         if ($formation->getStatut() !== Formation::STATUT_ACCEPTEE && !$this->canManage($formation)) {
             return $this->json(['error' => 'Formation non trouvée'], 404);
         }
+
+        return $this->json($this->serialize($formation));
+    }
+
+    /** Ajouter / retirer une formation des favoris de l'utilisateur connecté */
+    #[Route('/{id}/favori', name: 'api_formations_toggle_favori', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function toggleFavori(string $id): JsonResponse
+    {
+        $formation = $this->repository->find($id);
+
+        if (!$formation || $formation->getStatut() !== Formation::STATUT_ACCEPTEE) {
+            return $this->json(['error' => 'Formation non trouvée'], 404);
+        }
+
+        $userIdentifier = $this->getUser()->getUserIdentifier();
+        $formation->toggleFavori($userIdentifier);
+        $this->dm->flush();
 
         return $this->json($this->serialize($formation));
     }
@@ -167,7 +195,6 @@ class FormationController extends AbstractController
         if (array_key_exists('prix', $data)) $formation->setPrix((float) $data['prix']);
         if (array_key_exists('objectifs', $data)) $formation->setObjectifs((string) $data['objectifs']);
 
-        // Si gratuite, le prix est forcé à 0
         if ($formation->isGratuit()) {
             $formation->setPrix(0);
         }
@@ -188,7 +215,6 @@ class FormationController extends AbstractController
             return $this->json(['error' => 'La date de fin doit être après la date de début'], 400);
         }
 
-        // Un médecin qui modifie renvoie la formation en validation
         if (!$this->isGranted('ROLE_ADMIN')) {
             $formation->setStatut(Formation::STATUT_EN_ATTENTE);
         }
@@ -261,6 +287,8 @@ class FormationController extends AbstractController
 
     private function serialize(Formation $f): array
     {
+        $userIdentifier = $this->getUser()?->getUserIdentifier();
+
         return [
             'id'          => $f->getId(),
             'titre'       => $f->getTitre(),
@@ -273,6 +301,7 @@ class FormationController extends AbstractController
             'objectifs'   => $f->getObjectifs(),
             'statut'      => $f->getStatut(),
             'createdBy'   => $f->getCreatedBy(),
+            'isFavori'    => $f->isFavoriBy($userIdentifier),
         ];
     }
 }
