@@ -20,6 +20,7 @@ import {
   Users,
   FileText,
   Send,
+  Heart, // ← nouveau
 } from "lucide-react";
 
 const ITEMS_PER_PAGE = 3;
@@ -85,6 +86,7 @@ export default function MesActivites() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [favoritingId, setFavoritingId] = useState(null); // ← nouveau
 
   const [vue, setVue] = useState("mes");
 
@@ -102,7 +104,7 @@ export default function MesActivites() {
   const [viewingActivite, setViewingActivite] = useState(null);
 
   // === SOUMISSIONS ===
-  const [soumissionsModal, setSoumissionsModal] = useState(null); // { activite, soumissions, total, loading }
+  const [soumissionsModal, setSoumissionsModal] = useState(null);
   const [notingId, setNotingId] = useState(null);
   const [noteForm, setNoteForm] = useState({ note: "", commentaireMedecin: "" });
 
@@ -255,6 +257,46 @@ export default function MesActivites() {
     }
   };
 
+  // ===== FAVORIS =====
+  const toggleFavori = async (act) => {
+    if (favoritingId) return;
+
+    setFavoritingId(act.id);
+
+    try {
+      const res = await fetch(`/api/medecin/activites/${act.id}/favori`, {
+        method: "POST",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Erreur lors de la mise à jour des favoris");
+      }
+
+      // Mise à jour optimiste
+      setActivites((prev) =>
+        prev.map((a) =>
+          a.id === act.id ? { ...a, isFavori: data.isFavori } : a
+        )
+      );
+
+      // Si on est dans le modal de visualisation, on met aussi à jour
+      setViewingActivite((prev) =>
+        prev && prev.id === act.id
+          ? { ...prev, isFavori: data.isFavori }
+          : prev
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Une erreur est survenue");
+    } finally {
+      setFavoritingId(null);
+    }
+  };
+
   const openEditModal = (act) => {
     setEditingActivite(act);
     setForm({
@@ -375,9 +417,10 @@ export default function MesActivites() {
   const openNoteForm = (soumission) => {
     setNotingId(soumission.id);
     setNoteForm({
-      note: soumission.note !== null && soumission.note !== undefined
-        ? String(soumission.note)
-        : "",
+      note:
+        soumission.note !== null && soumission.note !== undefined
+          ? String(soumission.note)
+          : "",
       commentaireMedecin: soumission.commentaireMedecin || "",
     });
   };
@@ -406,7 +449,6 @@ export default function MesActivites() {
         throw new Error(data.message || "Erreur lors de l'enregistrement de la note");
       }
 
-      // Mettre à jour la liste locale
       setSoumissionsModal((prev) => {
         if (!prev) return prev;
         return {
@@ -669,6 +711,30 @@ export default function MesActivites() {
                       Voir
                     </button>
 
+                    {/* Bouton Favoris (uniquement en vue "tous") */}
+                    {vue === "tous" && (
+                      <button
+                        type="button"
+                        onClick={() => toggleFavori(act)}
+                        disabled={favoritingId === act.id}
+                        className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                          act.isFavori
+                            ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                            : "border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+                        } disabled:opacity-60`}
+                        title={act.isFavori ? "Retirer des favoris" : "Ajouter aux favoris"}
+                      >
+                        {favoritingId === act.id ? (
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <Heart
+                            size={16}
+                            className={act.isFavori ? "fill-current" : ""}
+                          />
+                        )}
+                      </button>
+                    )}
+
                     {/* Bouton Voir les soumissions (uniquement en vue "mes") */}
                     {vue === "mes" && (
                       <button
@@ -720,7 +786,7 @@ export default function MesActivites() {
         )}
       </div>
 
-      {/* Modal visualisation instructions */}
+      {/* Modal visualisation */}
       {viewingActivite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#E4DFD3] bg-white shadow-xl">
@@ -799,6 +865,34 @@ export default function MesActivites() {
                   {viewingActivite.instructions || "—"}
                 </p>
               </div>
+
+              {/* Bouton favoris aussi dans le modal (vue "tous") */}
+              {vue === "tous" && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleFavori(viewingActivite)}
+                    disabled={favoritingId === viewingActivite.id}
+                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
+                      viewingActivite.isFavori
+                        ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                        : "border-[#E4DFD3] bg-white text-[#0F3D3E] hover:bg-[#FAF8F5]"
+                    } disabled:opacity-60`}
+                  >
+                    {favoritingId === viewingActivite.id ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Heart
+                        size={16}
+                        className={viewingActivite.isFavori ? "fill-current" : ""}
+                      />
+                    )}
+                    {viewingActivite.isFavori
+                      ? "Retirer des favoris"
+                      : "Ajouter aux favoris"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="sticky bottom-0 flex justify-end border-t border-[#E4DFD3] bg-white px-6 py-4">
@@ -935,7 +1029,6 @@ export default function MesActivites() {
                         </div>
                       )}
 
-                      {/* Formulaire de notation */}
                       {notingId === s.id ? (
                         <form
                           onSubmit={handleNoter}

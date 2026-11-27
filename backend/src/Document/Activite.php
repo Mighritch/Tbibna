@@ -57,6 +57,9 @@ class Activite
     #[ODM\Field(type: "date_immutable")]
     private ?\DateTimeImmutable $createdAt = null;
 
+    /**
+     * IDs des utilisateurs (étudiants OU médecins) qui ont mis l'activité en favoris
+     */
     #[ODM\Field(type: "collection")]
     private array $favoris = [];
 
@@ -170,28 +173,28 @@ class Activite
         return $this;
     }
 
-    public function addFavori(string $etudiantId): self
+    public function addFavori(string $userId): self
     {
         $favoris = $this->getFavoris();
-        if (!in_array($etudiantId, $favoris, true)) {
-            $favoris[] = $etudiantId;
+        if (!in_array($userId, $favoris, true)) {
+            $favoris[] = $userId;
             $this->favoris = $favoris;
         }
         return $this;
     }
 
-    public function removeFavori(string $etudiantId): self
+    public function removeFavori(string $userId): self
     {
         $this->favoris = array_values(array_filter(
             $this->getFavoris(),
-            fn($id) => $id !== $etudiantId
+            fn($id) => $id !== $userId
         ));
         return $this;
     }
 
-    public function isFavoriPar(string $etudiantId): bool
+    public function isFavoriPar(string $userId): bool
     {
-        return in_array($etudiantId, $this->getFavoris(), true);
+        return in_array($userId, $this->getFavoris(), true);
     }
 
     // ========== PARTICIPANTS (null-safe) ==========

@@ -24,14 +24,19 @@ class ActiviteController extends AbstractController
 {
     #[Route('/api/activites/accepte', name: 'activites_accepte', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
-    public function listeAcceptees(ActiviteRepository $activiteRepository): JsonResponse
-    {
+    public function listeAcceptees(
+        ActiviteRepository $activiteRepository,
+        MedecinRepository $medecinRepository
+    ): JsonResponse {
+        $medecin = $this->getMedecinConnecte($medecinRepository);
+        $medecinId = $medecin->getId();
+
         $activites = $activiteRepository->findBy(
             ['statut' => 'accepte'],
             ['createdAt' => 'DESC']
         );
 
-        $data = array_map(function (Activite $a) {
+        $data = array_map(function (Activite $a) use ($medecinId) {
             $medecinData = null;
 
             try {
@@ -59,6 +64,7 @@ class ActiviteController extends AbstractController
                 'createdAt' => $a->getCreatedAt()?->format('c'),
                 'nbParticipants' => count($a->getParticipants()),
                 'medecin' => $medecinData,
+                'isFavori' => $a->isFavoriPar($medecinId),
             ];
         }, $activites);
 
@@ -405,6 +411,61 @@ class ActiviteController extends AbstractController
             'message' => 'Note enregistrée avec succès.',
             'note'    => $soumission->getNote(),
             'commentaireMedecin' => $soumission->getCommentaireMedecin(),
+        ]);
+    }
+
+    /**
+     * Ajouter / retirer une activité des favoris du médecin connecté
+     */
+    #[Route('/api/medecin/activites/{id}/favori', name: 'medecin_activite_favori', methods: ['POST'])]
+    #[IsGranted('ROLE_MEDECIN')]
+    public function toggleFavori(
+        string $id,
+        DocumentManager $dm,
+        ActiviteRepository $activiteRepository,
+        MedecinRepository $medecinRepository
+    ): JsonResponse {
+        $medecin = $this->getMedecinConnecte($medecinRepository);
+        $medecinId = $medecin->getId();
+
+        $activite = $activiteRepository->find($id);
+
+        if (!$activite) {
+            return $this->json(['message' => 'Activité introuvable.'], 404);
+        }
+
+        // On ne peut mettre en favoris que les activités acceptées
+        if ($activite->getStatut() !== 'accepte') {
+            return $this->json([
+                'message' => 'Seules les activités acceptées peuvent être mises en favoris.'
+            ], 400);
+        }
+
+        // Un médecin ne peut pas mettre sa propre activité en favoris
+        if ($activite->getMedecin()?->getId() === $medecinId) {
+            return $this->json([
+                'message' => 'Vous ne pouvez pas mettre vos propres activités en favoris.'
+            ], 400);
+        }
+
+        $isFavori = $activite->isFavoriPar($medecinId);
+
+        if ($isFavori) {
+            $activite->removeFavori($medecinId);
+            $message = 'Activité retirée des favoris.';
+            $newState = false;
+        } else {
+            $activite->addFavori($medecinId);
+            $message = 'Activité ajoutée aux favoris.';
+            $newState = true;
+        }
+
+        $dm->flush();
+
+        return $this->json([
+            'message' => $message,
+            'isFavori' => $newState,
+            'id' => $activite->getId(),
         ]);
     }
 
