@@ -54,6 +54,10 @@ class Evenement
     #[ODM\Field(type: "date", nullable: true)]
     private ?\DateTime $dateDecision = null;
 
+    /** @var string[] */
+    #[ODM\Field(type: "collection")]
+    private array $favorisUserIds = [];
+
     public function getId(): ?string
     {
         return $this->id;
@@ -200,5 +204,33 @@ class Evenement
     {
         $this->dateDecision = $v;
         return $this;
+    }
+
+    /** @return string[] */
+    public function getFavorisUserIds(): array
+    {
+        return $this->favorisUserIds;
+    }
+
+    public function isFavoriBy(?string $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        return in_array($userId, $this->favorisUserIds, true);
+    }
+
+    public function toggleFavori(string $userId): bool
+    {
+        if ($this->isFavoriBy($userId)) {
+            $this->favorisUserIds = array_values(
+                array_filter($this->favorisUserIds, fn (string $id) => $id !== $userId)
+            );
+            return false;
+        }
+
+        $this->favorisUserIds[] = $userId;
+        return true;
     }
 }

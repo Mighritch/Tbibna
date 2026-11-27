@@ -22,6 +22,18 @@ class EvenementRepository extends ServiceDocumentRepository
         );
     }
 
+    /** Évènements publiés mis en favoris par un utilisateur */
+    public function findFavorisByUser(string $userId): array
+    {
+        return $this->findBy(
+            [
+                'statut' => Evenement::STATUT_ACCEPTE,
+                'favorisUserIds' => $userId,
+            ],
+            ['dateDebut' => 'ASC']
+        );
+    }
+
     /** Évènements d'un médecin (tous statuts) */
     public function findByAuteur(string $auteurId): array
     {

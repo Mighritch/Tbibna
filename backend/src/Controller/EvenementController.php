@@ -17,9 +17,49 @@ class EvenementController extends AbstractController
     #[Route('/evenements/publies', name: 'api_evenement_publies', methods: ['GET'])]
     public function publies(EvenementRepository $repo): JsonResponse
     {
+        $userId = $this->currentUserId();
+
         return $this->json(
-            array_map(fn (Evenement $e) => $this->serialize($e), $repo->findPublies())
+            array_map(fn (Evenement $e) => $this->serialize($e, $userId), $repo->findPublies())
         );
+    }
+
+    #[Route('/evenements/favoris', name: 'api_evenement_favoris', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function favoris(EvenementRepository $repo): JsonResponse
+    {
+        $userId = $this->currentUserId();
+
+        return $this->json(
+            array_map(
+                fn (Evenement $e) => $this->serialize($e, $userId),
+                $repo->findFavorisByUser($userId)
+            )
+        );
+    }
+
+    #[Route('/evenements/{id}/favori', name: 'api_evenement_toggle_favori', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function toggleFavori(
+        string $id,
+        EvenementRepository $repo,
+        DocumentManager $dm
+    ): JsonResponse {
+        $evenement = $repo->find($id);
+
+        if (!$evenement || $evenement->getStatut() !== Evenement::STATUT_ACCEPTE) {
+            return $this->json(['message' => 'Évènement introuvable.'], 404);
+        }
+
+        $userId = $this->currentUserId();
+        $isFavori = $evenement->toggleFavori($userId);
+
+        $dm->flush();
+
+        return $this->json([
+            'id' => $evenement->getId(),
+            'isFavori' => $isFavori,
+        ]);
     }
 
     #[Route('/evenements/{id}', name: 'api_evenement_show', methods: ['GET'])]
@@ -326,13 +366,23 @@ class EvenementController extends AbstractController
         ];
     }
 
-    private function auteur(): array
+    private function currentUserId(): ?string
     {
         $u = $this->getUser();
 
-        $id = method_exists($u, 'getId')
+        if (!$u) {
+            return null;
+        }
+
+        return method_exists($u, 'getId')
             ? (string) $u->getId()
             : $u->getUserIdentifier();
+    }
+
+    private function auteur(): array
+    {
+        $u = $this->getUser();
+        $id = $this->currentUserId();
 
         $nom = trim(
             (method_exists($u, 'getPrenom') ? (string) $u->getPrenom() : '') . ' ' .
@@ -364,7 +414,7 @@ class EvenementController extends AbstractController
         }
     }
 
-    private function serialize(Evenement $e): array
+    private function serialize(Evenement $e, ?string $userId = null): array
     {
         return [
             'id' => $e->getId(),
@@ -380,6 +430,7 @@ class EvenementController extends AbstractController
             'auteurNom' => $e->getAuteurNom(),
             'motifRefus' => $e->getMotifRefus(),
             'dateDecision' => $e->getDateDecision()?->format(\DateTimeInterface::ATOM),
+            'isFavori' => $e->isFavoriBy($userId),
         ];
     }
 }
