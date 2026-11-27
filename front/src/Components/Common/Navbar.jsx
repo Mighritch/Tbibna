@@ -86,6 +86,7 @@ function getNavLinks(user) {
       { label: "Activités", to: "/dashboard/etudiant/activites" },
       { label: "Examens", to: "/dashboard/etudiant/examens" },
       { label: "Formations", to: "/dashboard/etudiant/formations" },
+      { label: "Évènements", to: "/dashboard/etudiant/evenements" },
     ];
   } else {
     links = [
