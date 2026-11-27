@@ -246,7 +246,6 @@ class CoursController extends AbstractController
                 ], 400);
             }
 
-            // Limite de taille pour éviter de dépasser les tokens
             $texteExtrait = mb_substr($texteExtrait, 0, 12000);
 
             $titre       = $cours->getTitre() ?? '';
@@ -255,7 +254,6 @@ class CoursController extends AbstractController
             $niveau      = $cours->getNiveauCours() ?? '';
             $duree       = $cours->getDuree() ?? null;
 
-            // ========== PROMPT SPÉCIAL POINTS IMPORTANTS ==========
             $prompt  = "Tu es un expert médical et pédagogue expérimenté.\n\n";
             $prompt .= "Analyse le contenu du cours médical ci-dessous et extrais UNIQUEMENT les points les plus importants.\n\n";
             $prompt .= "=== INFORMATIONS DU COURS ===\n";
@@ -337,6 +335,41 @@ class CoursController extends AbstractController
 
             return $this->json([
                 'resume' => $resume,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+    }
+
+    /**
+     * Ajouter ou retirer un cours des favoris de l'étudiant connecté
+     */
+    #[Route('/{id}/favori', name: 'cours_toggle_favori', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function toggleFavori(string $id): JsonResponse
+    {
+        try {
+            /** @var User|null $user */
+            $user = $this->getUser();
+            if (!$user || !$user->getId()) {
+                return $this->json(['error' => 'Utilisateur non authentifié.'], 401);
+            }
+
+            $cours = $this->coursRepository->find($id);
+            if (!$cours) {
+                return $this->json(['error' => 'Cours introuvable.'], 404);
+            }
+
+            if ($cours->getStatut() !== 'approuve') {
+                return $this->json(['error' => 'Ce cours ne peut pas être ajouté aux favoris.'], 403);
+            }
+
+            $isFavori = $cours->toggleFavori($user->getId());
+            $this->dm->flush();
+
+            return $this->json([
+                'isFavori' => $isFavori,
+                'message' => $isFavori ? 'Cours ajouté aux favoris.' : 'Cours retiré des favoris.',
             ]);
         } catch (\Throwable $e) {
             return $this->handleException($e);
@@ -452,14 +485,12 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Utilisateur non authentifié.'], 401);
             }
 
-            // Récupération du médecin (une seule requête)
             $medecin = $this->medecinRepository->findOneBy(['utilisateur' => $user->getId()]);
 
             if (!$medecin) {
                 return $this->json(['error' => 'Profil médecin introuvable.'], 404);
             }
 
-            // Récupération des cours triés (index recommandé : medecin + dateCreation)
             $coursList = $this->coursRepository->findBy(
                 ['medecin' => $medecin],
                 ['dateCreation' => 'DESC']
@@ -495,12 +526,16 @@ class CoursController extends AbstractController
     public function publicList(): JsonResponse
     {
         try {
+            /** @var User|null $currentUser */
+            $currentUser = $this->getUser();
+            $currentUserId = $currentUser?->getId();
+
             $coursList = $this->coursRepository->findBy(
                 ['statut' => 'approuve'],
                 ['dateCreation' => 'DESC']
             );
 
-            $result = array_map(function (Cours $c) {
+            $result = array_map(function (Cours $c) use ($currentUserId) {
                 $medecin = $c->getMedecin();
                 $utilisateur = $medecin?->getUtilisateur();
 
@@ -516,7 +551,7 @@ class CoursController extends AbstractController
                     'typeContenu' => $c->getTypeContenu(),
                     'statut' => $c->getStatut(),
                     'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
-                    // Informations du médecin auteur (pour l'affichage "Par Dr. ...")
+                    'isFavori' => $c->isFavoriByUser($currentUserId),
                     'medecin' => $medecin ? [
                         'id' => $medecin->getId(),
                         'nom' => $utilisateur?->getNom(),
@@ -577,7 +612,6 @@ class CoursController extends AbstractController
                 return $this->json(['error' => 'Cours introuvable.'], 404);
             }
 
-            // On ne fait rien si déjà approuvé
             if ($cours->getStatut() === 'approuve') {
                 return $this->json(['message' => 'Ce cours est déjà approuvé.']);
             }
@@ -585,7 +619,6 @@ class CoursController extends AbstractController
             $cours->setStatut('approuve');
             $this->dm->flush();
 
-            // ========== ENVOI EMAIL AU MÉDECIN ==========
             $emailSent = false;
             $emailError = null;
 
@@ -593,7 +626,6 @@ class CoursController extends AbstractController
                 $medecin = $cours->getMedecin();
                 $utilisateur = $medecin?->getUtilisateur();
 
-                // Récupération de l'email
                 $emailMedecin = null;
                 if ($utilisateur) {
                     if (method_exists($utilisateur, 'getEmail')) {
@@ -612,7 +644,6 @@ class CoursController extends AbstractController
                     $emailError = 'Email du médecin introuvable ou invalide.';
                 }
             } catch (\Throwable $mailEx) {
-                // On ne fait pas échouer l'approbation si l'email échoue
                 $emailError = $mailEx->getMessage();
             }
 
@@ -741,7 +772,6 @@ class CoursController extends AbstractController
         $langue = htmlspecialchars($cours->getLangueCours() ?? '—', ENT_QUOTES, 'UTF-8');
         $duree  = $cours->getDuree() ? (int) $cours->getDuree() . ' min' : '—';
 
-        // Version HTML
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="fr">
@@ -755,15 +785,12 @@ class CoursController extends AbstractController
     <tr>
       <td align="center">
         <table width="100%" style="max-width:560px; background:#ffffff; border-radius:16px; border:1px solid #E4DFD3; overflow:hidden;">
-          <!-- Header -->
           <tr>
             <td style="background-color:#0F3D3E; padding:28px 32px;">
               <h1 style="margin:0; color:#F4C95D; font-size:22px; font-weight:700;">Tbibna</h1>
               <p style="margin:8px 0 0; color:#E8C77E; font-size:15px;">Votre cours a été approuvé ✓</p>
             </td>
           </tr>
-
-          <!-- Body -->
           <tr>
             <td style="padding:32px;">
               <p style="margin:0 0 16px; color:#3C3A34; font-size:15px; line-height:1.6;">
@@ -772,8 +799,6 @@ class CoursController extends AbstractController
               <p style="margin:0 0 24px; color:#3C3A34; font-size:15px; line-height:1.6;">
                 Nous avons le plaisir de vous informer que votre cours a été <strong style="color:#0F3D3E;">approuvé</strong> par un administrateur et est désormais visible sur la plateforme Tbibna.
               </p>
-
-              <!-- Card infos cours -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#FBF9F4; border:1px solid #E4DFD3; border-radius:12px; margin-bottom:28px;">
                 <tr>
                   <td style="padding:18px 20px;">
@@ -788,7 +813,6 @@ class CoursController extends AbstractController
                   </td>
                 </tr>
               </table>
-
               <p style="margin:0 0 8px; color:#3C3A34; font-size:15px; line-height:1.6;">
                 Merci pour votre contribution à la communauté médicale.
               </p>
@@ -797,8 +821,6 @@ class CoursController extends AbstractController
               </p>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="padding:16px 32px; background:#F8F6F1; border-top:1px solid #E4DFD3;">
               <p style="margin:0; font-size:12px; color:#9A9790; text-align:center;">
@@ -814,7 +836,6 @@ class CoursController extends AbstractController
 </html>
 HTML;
 
-        // Version texte
         $text = "Bonjour,\n\n"
               . "Nous avons le plaisir de vous informer que votre cours a été approuvé par un administrateur et est désormais visible sur la plateforme Tbibna.\n\n"
               . "Titre : {$titre}\n"

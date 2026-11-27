@@ -13,6 +13,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Heart,
 } from "lucide-react";
 
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
@@ -27,8 +28,10 @@ export default function CoursEtudiant() {
   const [search, setSearch] = useState("");
   const [langue, setLangue] = useState("");
   const [niveau, setNiveau] = useState("");
+  const [onlyFavoris, setOnlyFavoris] = useState(false);
 
   const [resumes, setResumes] = useState({});
+  const [favoriLoading, setFavoriLoading] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -62,7 +65,12 @@ export default function CoursEtudiant() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, langue, niveau]);
+  }, [search, langue, niveau, onlyFavoris]);
+
+  const favorisCount = useMemo(
+    () => cours.filter((c) => c.isFavori).length,
+    [cours]
+  );
 
   const coursFiltres = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -83,9 +91,11 @@ export default function CoursEtudiant() {
         (c.niveauCours &&
           c.niveauCours.toLowerCase() === niveau.toLowerCase());
 
-      return matchSearch && matchLangue && matchNiveau;
+      const matchFavori = !onlyFavoris || Boolean(c.isFavori);
+
+      return matchSearch && matchLangue && matchNiveau && matchFavori;
     });
-  }, [cours, search, langue, niveau]);
+  }, [cours, search, langue, niveau, onlyFavoris]);
 
   const totalPages = Math.ceil(coursFiltres.length / ITEMS_PER_PAGE);
   const coursPagines = coursFiltres.slice(
@@ -93,11 +103,67 @@ export default function CoursEtudiant() {
     currentPage * ITEMS_PER_PAGE
   );
 
+  // Ajuster la page courante si on retire le dernier favori d'une page
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
   const resetFiltres = () => {
     setSearch("");
     setLangue("");
     setNiveau("");
+    setOnlyFavoris(false);
     setCurrentPage(1);
+  };
+
+  const toggleFavori = async (coursId) => {
+    if (favoriLoading[coursId]) return;
+
+    const currentItem = cours.find((c) => c.id === coursId);
+    const previousState = Boolean(currentItem?.isFavori);
+
+    // Mise à jour optimiste de l'UI
+    setCours((prev) =>
+      prev.map((c) =>
+        c.id === coursId ? { ...c, isFavori: !previousState } : c
+      )
+    );
+    setFavoriLoading((prev) => ({ ...prev, [coursId]: true }));
+
+    try {
+      const res = await fetch(`/api/cours/${coursId}/favori`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Impossible de mettre à jour le favori.");
+      }
+
+      setCours((prev) =>
+        prev.map((c) =>
+          c.id === coursId ? { ...c, isFavori: Boolean(data.isFavori) } : c
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      // Annulation en cas d'erreur
+      setCours((prev) =>
+        prev.map((c) =>
+          c.id === coursId ? { ...c, isFavori: previousState } : c
+        )
+      );
+      alert(err.message || "Erreur lors de la mise à jour des favoris.");
+    } finally {
+      setFavoriLoading((prev) => ({ ...prev, [coursId]: false }));
+    }
   };
 
   const getTypeIcon = (type) => {
@@ -163,17 +229,48 @@ export default function CoursEtudiant() {
     }
   };
 
+  const hasActiveFilters = Boolean(search || langue || niveau || onlyFavoris);
+
   return (
     <div className="min-h-screen bg-[#FBF9F4] p-6 md:p-8">
       <div className="mx-auto max-w-6xl">
         {/* En-tête */}
-        <div className="mb-8">
-          <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
-            Catalogue des cours
-          </h1>
-          <p className="mt-2 text-[#737873]">
-            Accédez aux cours validés par l’équipe pédagogique.
-          </p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
+              Catalogue des cours
+            </h1>
+            <p className="mt-2 text-[#737873]">
+              Accédez aux cours validés par l’équipe pédagogique.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setOnlyFavoris((prev) => !prev)}
+            className={`inline-flex items-center gap-2 self-start rounded-xl border px-4 py-2.5 text-sm font-semibold transition sm:self-auto ${
+              onlyFavoris
+                ? "border-rose-200 bg-rose-50 text-rose-700 shadow-sm"
+                : "border-[#E6E1D5] bg-white text-[#0F3D3E] hover:border-rose-200 hover:bg-rose-50/50"
+            }`}
+          >
+            <Heart
+              size={16}
+              className={
+                onlyFavoris ? "fill-rose-500 text-rose-500" : "text-rose-500"
+              }
+            />
+            Mes favoris
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs ${
+                onlyFavoris
+                  ? "bg-rose-200/70 text-rose-800"
+                  : "bg-[#FAF8F5] text-[#737873]"
+              }`}
+            >
+              {favorisCount}
+            </span>
+          </button>
         </div>
 
         {/* Barre de recherche + filtres */}
@@ -246,7 +343,7 @@ export default function CoursEtudiant() {
               </div>
             </div>
 
-            {(search || langue || niveau) && (
+            {hasActiveFilters && (
               <button
                 type="button"
                 onClick={resetFiltres}
@@ -261,7 +358,7 @@ export default function CoursEtudiant() {
             <p className="mt-4 text-sm text-[#737873]">
               {coursFiltres.length} cours trouvé
               {coursFiltres.length !== 1 ? "s" : ""}
-              {(search || langue || niveau) && " (filtrés)"}
+              {hasActiveFilters && " (filtrés)"}
             </p>
           )}
         </div>
@@ -283,12 +380,16 @@ export default function CoursEtudiant() {
           <div className="rounded-2xl border border-[#E6E1D5] bg-white px-6 py-16 text-center">
             <BookOpen size={40} className="mx-auto text-[#0F3D3E]/40" />
             <p className="mt-4 text-lg font-medium text-[#0F3D3E]">
-              Aucun cours trouvé
+              {onlyFavoris
+                ? "Aucun cours favori trouvé"
+                : "Aucun cours trouvé"}
             </p>
             <p className="mt-1 text-sm text-[#737873]">
-              Essayez de modifier votre recherche ou vos filtres.
+              {onlyFavoris
+                ? "Cliquez sur le cœur d'un cours pour l'ajouter à vos favoris."
+                : "Essayez de modifier votre recherche ou vos filtres."}
             </p>
-            {(search || langue || niveau) && (
+            {hasActiveFilters && (
               <button
                 type="button"
                 onClick={resetFiltres}
@@ -306,13 +407,15 @@ export default function CoursEtudiant() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {coursPagines.map((c) => {
                 const resumeState = resumes[c.id] || {};
+                const isFav = Boolean(c.isFavori);
+                const isTogglingFav = Boolean(favoriLoading[c.id]);
 
                 return (
                   <article
                     key={c.id}
                     className="group flex flex-col overflow-hidden rounded-2xl border border-[#E6E1D5] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#0F3D3E]/25 hover:shadow-lg"
                   >
-                    <div className="flex items-start justify-between gap-3 border-b border-[#E6E1D5]/70 bg-[#FAF8F5] px-5 py-4">
+                    <div className="flex items-center justify-between gap-3 border-b border-[#E6E1D5]/70 bg-[#FAF8F5] px-5 py-4">
                       <div className="flex items-center gap-2.5">
                         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
                           {getTypeIcon(c.typeContenu)}
@@ -321,9 +424,38 @@ export default function CoursEtudiant() {
                           {getTypeLabel(c.typeContenu)}
                         </span>
                       </div>
-                      <span className="rounded-full bg-[#EBF3F0] px-2.5 py-1 text-[11px] font-medium text-[#2A6B59]">
-                        {c.niveauCours || "—"}
-                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-[#EBF3F0] px-2.5 py-1 text-[11px] font-medium text-[#2A6B59]">
+                          {c.niveauCours || "—"}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleFavori(c.id)}
+                          disabled={isTogglingFav}
+                          title={
+                            isFav
+                              ? "Retirer des favoris"
+                              : "Ajouter aux favoris"
+                          }
+                          aria-label={
+                            isFav
+                              ? "Retirer des favoris"
+                              : "Ajouter aux favoris"
+                          }
+                          className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
+                            isFav
+                              ? "border-rose-200 bg-rose-50 text-rose-500 hover:bg-rose-100"
+                              : "border-[#E6E1D5] bg-white text-[#737873] hover:border-rose-200 hover:text-rose-500"
+                          } disabled:opacity-60`}
+                        >
+                          <Heart
+                            size={15}
+                            className={isFav ? "fill-rose-500" : ""}
+                          />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex flex-1 flex-col p-5">

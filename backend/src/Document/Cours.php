@@ -50,10 +50,15 @@ class Cours
     #[ODM\Field(type: "date")]
     private ?\DateTime $dateCreation = null;
 
+    // Liste des IDs des utilisateurs ayant mis ce cours en favori
+    #[ODM\Field(type: "collection")]
+    private array $favorisUserIds = [];
+
     public function __construct()
     {
         $this->dateCreation = new \DateTime();
         $this->statut = 'en_attente';
+        $this->favorisUserIds = [];
     }
 
     public function getId(): ?string
@@ -180,5 +185,38 @@ class Cours
     {
         $this->dateCreation = $dateCreation;
         return $this;
+    }
+
+    public function getFavorisUserIds(): array
+    {
+        return $this->favorisUserIds;
+    }
+
+    public function setFavorisUserIds(array $favorisUserIds): static
+    {
+        $this->favorisUserIds = array_values(array_unique($favorisUserIds));
+        return $this;
+    }
+
+    public function isFavoriByUser(?string $userId): bool
+    {
+        if (!$userId) {
+            return false;
+        }
+        return in_array($userId, $this->favorisUserIds, true);
+    }
+
+    public function toggleFavori(string $userId): bool
+    {
+        if ($this->isFavoriByUser($userId)) {
+            $this->favorisUserIds = array_values(array_filter(
+                $this->favorisUserIds,
+                static fn(string $id) => $id !== $userId
+            ));
+            return false;
+        }
+
+        $this->favorisUserIds[] = $userId;
+        return true;
     }
 }
