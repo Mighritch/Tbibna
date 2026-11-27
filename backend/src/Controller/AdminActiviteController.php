@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Document\Activite;
 use App\Repository\ActiviteRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Doctrine\ODM\MongoDB\DocumentNotFoundException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,51 +32,50 @@ class AdminActiviteController extends AbstractController
 
         $data = array_map(
             function (Activite $activite) {
-                $medecin = $activite->getMedecin();
                 $medecinNom = null;
 
-                if ($medecin) {
-                    /*
-                     * Le médecin est lié à un User.
-                     * On récupère le prénom et le nom depuis User.
-                     */
-                    if (method_exists($medecin, 'getUser')) {
-                        $user = $medecin->getUser();
+                try {
+                    $medecin = $activite->getMedecin();
 
-                        if ($user) {
-                            $prenom = method_exists($user, 'getPrenom')
-                                ? ($user->getPrenom() ?? '')
-                                : '';
+                    if ($medecin) {
+                        if (method_exists($medecin, 'getUser')) {
+                            $user = $medecin->getUser();
 
-                            $nom = method_exists($user, 'getNom')
-                                ? ($user->getNom() ?? '')
-                                : '';
+                            if ($user) {
+                                $prenom = method_exists($user, 'getPrenom')
+                                    ? ($user->getPrenom() ?? '')
+                                    : '';
 
-                            $medecinNom = trim($prenom . ' ' . $nom);
+                                $nom = method_exists($user, 'getNom')
+                                    ? ($user->getNom() ?? '')
+                                    : '';
+
+                                $medecinNom = trim($prenom . ' ' . $nom);
+                            }
+                        }
+
+                        if (!$medecinNom && method_exists($medecin, 'getUtilisateur')) {
+                            $user = $medecin->getUtilisateur();
+
+                            if ($user) {
+                                $prenom = method_exists($user, 'getPrenom')
+                                    ? ($user->getPrenom() ?? '')
+                                    : '';
+
+                                $nom = method_exists($user, 'getNom')
+                                    ? ($user->getNom() ?? '')
+                                    : '';
+
+                                $medecinNom = trim($prenom . ' ' . $nom);
+                            }
+                        }
+
+                        if (!$medecinNom && method_exists($medecin, 'getId')) {
+                            $medecinNom = (string) $medecin->getId();
                         }
                     }
-
-                    // Fallback : getUtilisateur() (comme dans CoursController)
-                    if (!$medecinNom && method_exists($medecin, 'getUtilisateur')) {
-                        $user = $medecin->getUtilisateur();
-
-                        if ($user) {
-                            $prenom = method_exists($user, 'getPrenom')
-                                ? ($user->getPrenom() ?? '')
-                                : '';
-
-                            $nom = method_exists($user, 'getNom')
-                                ? ($user->getNom() ?? '')
-                                : '';
-
-                            $medecinNom = trim($prenom . ' ' . $nom);
-                        }
-                    }
-
-                    // Si aucun nom n'a été trouvé, on utilise l'ID du médecin.
-                    if (!$medecinNom && method_exists($medecin, 'getId')) {
-                        $medecinNom = (string) $medecin->getId();
-                    }
+                } catch (DocumentNotFoundException) {
+                    $medecinNom = 'Compte médecin supprimé';
                 }
 
                 return [
@@ -155,7 +155,6 @@ class AdminActiviteController extends AbstractController
                 $utilisateur = null;
 
                 if ($medecin) {
-                    // On essaie les deux getters possibles
                     if (method_exists($medecin, 'getUtilisateur')) {
                         $utilisateur = $medecin->getUtilisateur();
                     } elseif (method_exists($medecin, 'getUser')) {
@@ -181,7 +180,6 @@ class AdminActiviteController extends AbstractController
                     $emailError = 'Email du médecin introuvable ou invalide.';
                 }
             } catch (\Throwable $mailEx) {
-                // On ne fait pas échouer le changement de statut si l'email échoue
                 $emailError = $mailEx->getMessage();
             }
         }
@@ -217,7 +215,6 @@ class AdminActiviteController extends AbstractController
         $difficulte = htmlspecialchars($activite->getDifficulte() ?? '—', ENT_QUOTES, 'UTF-8');
         $duree      = $activite->getDuree() ? (int) $activite->getDuree() . ' min' : '—';
 
-        // Version HTML
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="fr">
@@ -231,15 +228,12 @@ class AdminActiviteController extends AbstractController
     <tr>
       <td align="center">
         <table width="100%" style="max-width:560px; background:#ffffff; border-radius:16px; border:1px solid #E4DFD3; overflow:hidden;">
-          <!-- Header -->
           <tr>
             <td style="background-color:#0F3D3E; padding:28px 32px;">
               <h1 style="margin:0; color:#F4C95D; font-size:22px; font-weight:700;">Tbibna</h1>
               <p style="margin:8px 0 0; color:#E8C77E; font-size:15px;">Votre activité a été approuvée ✓</p>
             </td>
           </tr>
-
-          <!-- Body -->
           <tr>
             <td style="padding:32px;">
               <p style="margin:0 0 16px; color:#3C3A34; font-size:15px; line-height:1.6;">
@@ -248,8 +242,6 @@ class AdminActiviteController extends AbstractController
               <p style="margin:0 0 24px; color:#3C3A34; font-size:15px; line-height:1.6;">
                 Nous avons le plaisir de vous informer que votre activité a été <strong style="color:#0F3D3E;">approuvée</strong> par un administrateur et est désormais visible sur la plateforme Tbibna.
               </p>
-
-              <!-- Card infos activité -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#FBF9F4; border:1px solid #E4DFD3; border-radius:12px; margin-bottom:28px;">
                 <tr>
                   <td style="padding:18px 20px;">
@@ -263,7 +255,6 @@ class AdminActiviteController extends AbstractController
                   </td>
                 </tr>
               </table>
-
               <p style="margin:0 0 8px; color:#3C3A34; font-size:15px; line-height:1.6;">
                 Merci pour votre contribution à la communauté médicale.
               </p>
@@ -272,8 +263,6 @@ class AdminActiviteController extends AbstractController
               </p>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="padding:16px 32px; background:#F8F6F1; border-top:1px solid #E4DFD3;">
               <p style="margin:0; font-size:12px; color:#9A9790; text-align:center;">
@@ -289,7 +278,6 @@ class AdminActiviteController extends AbstractController
 </html>
 HTML;
 
-        // Version texte (meilleure délivrabilité, surtout Outlook)
         $text = "Bonjour,\n\n"
               . "Nous avons le plaisir de vous informer que votre activité a été approuvée par un administrateur et est désormais visible sur la plateforme Tbibna.\n\n"
               . "Titre : {$titre}\n"

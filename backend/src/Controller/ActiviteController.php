@@ -11,6 +11,7 @@ use App\Repository\ActiviteRepository;
 use App\Repository\MedecinRepository;
 use App\Repository\SoumissionActiviteRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Doctrine\ODM\MongoDB\DocumentNotFoundException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,8 +32,21 @@ class ActiviteController extends AbstractController
         );
 
         $data = array_map(function (Activite $a) {
-            $medecin = $a->getMedecin();
-            $utilisateur = $medecin?->getUtilisateur();
+            $medecinData = null;
+
+            try {
+                $medecin = $a->getMedecin();
+                if ($medecin) {
+                    $utilisateur = $medecin->getUtilisateur();
+                    $medecinData = [
+                        'id' => $medecin->getId(),
+                        'nom' => $utilisateur?->getNom() ?? 'Compte',
+                        'prenom' => $utilisateur?->getPrenom() ?? 'supprimé',
+                    ];
+                }
+            } catch (DocumentNotFoundException) {
+                $medecinData = null;
+            }
 
             return [
                 'id' => $a->getId(),
@@ -44,11 +58,7 @@ class ActiviteController extends AbstractController
                 'statut' => $a->getStatut(),
                 'createdAt' => $a->getCreatedAt()?->format('c'),
                 'nbParticipants' => count($a->getParticipants()),
-                'medecin' => $medecin ? [
-                    'id' => $medecin->getId(),
-                    'nom' => $utilisateur?->getNom(),
-                    'prenom' => $utilisateur?->getPrenom(),
-                ] : null,
+                'medecin' => $medecinData,
             ];
         }, $activites);
 
@@ -305,14 +315,21 @@ class ActiviteController extends AbstractController
         }
 
         $data = array_map(function (SoumissionActivite $s) {
-            $etudiant = $s->getEtudiant();
-            $utilisateur = $etudiant?->getUtilisateur();
-
+            $etudiantId = null;
             $etudiantNom = 'Étudiant';
-            if ($utilisateur) {
-                $prenom = method_exists($utilisateur, 'getPrenom') ? ($utilisateur->getPrenom() ?? '') : '';
-                $nom    = method_exists($utilisateur, 'getNom')    ? ($utilisateur->getNom() ?? '')    : '';
-                $etudiantNom = trim($prenom . ' ' . $nom) ?: 'Étudiant';
+
+            try {
+                $etudiant = $s->getEtudiant();
+                $etudiantId = $etudiant?->getId();
+                $utilisateur = $etudiant?->getUtilisateur();
+
+                if ($utilisateur) {
+                    $prenom = method_exists($utilisateur, 'getPrenom') ? ($utilisateur->getPrenom() ?? '') : '';
+                    $nom    = method_exists($utilisateur, 'getNom')    ? ($utilisateur->getNom() ?? '')    : '';
+                    $etudiantNom = trim($prenom . ' ' . $nom) ?: 'Étudiant';
+                }
+            } catch (DocumentNotFoundException) {
+                $etudiantNom = 'Compte étudiant supprimé';
             }
 
             return [
@@ -324,7 +341,7 @@ class ActiviteController extends AbstractController
                 'commentaireMedecin'  => $s->getCommentaireMedecin(),
                 'createdAt'           => $s->getCreatedAt()?->format('c'),
                 'etudiant'            => [
-                    'id'  => $etudiant?->getId(),
+                    'id'  => $etudiantId,
                     'nom' => $etudiantNom,
                 ],
             ];

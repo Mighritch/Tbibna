@@ -10,6 +10,7 @@ use App\Repository\ActiviteRepository;
 use App\Repository\EtudiantRepository;
 use App\Repository\SoumissionActiviteRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Doctrine\ODM\MongoDB\DocumentNotFoundException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,14 +40,19 @@ class EtudiantActiviteController extends AbstractController
         );
 
         $data = array_map(function (Activite $a) use ($etudiantId, $soumissionRepository, $etudiant) {
-            $medecin = $a->getMedecin();
-            $utilisateur = $medecin?->getUtilisateur();
-
             $medecinNom = 'Médecin';
-            if ($utilisateur) {
-                $prenom = method_exists($utilisateur, 'getPrenom') ? ($utilisateur->getPrenom() ?? '') : '';
-                $nom    = method_exists($utilisateur, 'getNom')    ? ($utilisateur->getNom() ?? '')    : '';
-                $medecinNom = trim($prenom . ' ' . $nom) ?: 'Médecin';
+
+            try {
+                $medecin = $a->getMedecin();
+                $utilisateur = $medecin?->getUtilisateur();
+
+                if ($utilisateur) {
+                    $prenom = method_exists($utilisateur, 'getPrenom') ? ($utilisateur->getPrenom() ?? '') : '';
+                    $nom    = method_exists($utilisateur, 'getNom')    ? ($utilisateur->getNom() ?? '')    : '';
+                    $medecinNom = trim($prenom . ' ' . $nom) ?: 'Médecin';
+                }
+            } catch (DocumentNotFoundException) {
+                $medecinNom = 'Compte médecin supprimé';
             }
 
             // Recherche soumission (essaie d'abord avec objets, puis avec IDs)
@@ -130,7 +136,6 @@ class EtudiantActiviteController extends AbstractController
         }
 
         // DELETE = quitter
-        // On empêche de quitter si l'étudiant a déjà soumis
         $soumissionExistante = $dm->getRepository(SoumissionActivite::class)->findOneBy([
             'activite' => $activite,
             'etudiant' => $etudiant,
@@ -152,7 +157,7 @@ class EtudiantActiviteController extends AbstractController
     }
 
     // =========================================================
-    // FAVORIS (existant)
+    // FAVORIS
     // =========================================================
     #[Route('/{id}/favori', name: 'etudiant_activite_favori', methods: ['POST', 'DELETE'])]
     public function favori(
@@ -208,14 +213,12 @@ class EtudiantActiviteController extends AbstractController
             return $this->json(['message' => 'Cette activité n\'est pas disponible.'], 403);
         }
 
-        // === CONTRÔLE PRINCIPAL ===
         if (!$activite->isParticipant($etudiantId)) {
             return $this->json([
                 'message' => 'Vous devez d\'abord rejoindre cette activité avant de pouvoir soumettre votre travail.'
             ], 403);
         }
 
-        // Vérifier qu'il n'a pas déjà soumis
         $existante = $soumissionRepository->findOneBy([
             'activite' => $activite,
             'etudiant' => $etudiant,
