@@ -342,7 +342,7 @@ class CoursController extends AbstractController
     }
 
     /**
-     * Ajouter ou retirer un cours des favoris de l'étudiant connecté
+     * Ajouter ou retirer un cours des favoris (étudiant ou médecin pour les cours des confrères)
      */
     #[Route('/{id}/favori', name: 'cours_toggle_favori', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
@@ -362,6 +362,13 @@ class CoursController extends AbstractController
 
             if ($cours->getStatut() !== 'approuve') {
                 return $this->json(['error' => 'Ce cours ne peut pas être ajouté aux favoris.'], 403);
+            }
+
+            // Empêcher un médecin d'ajouter son propre cours aux favoris
+            if ($cours->getMedecin()?->getUtilisateur()?->getId() === $user->getId()) {
+                return $this->json([
+                    'error' => 'Vous ne pouvez pas ajouter votre propre cours aux favoris.'
+                ], 400);
             }
 
             $isFavori = $cours->toggleFavori($user->getId());
@@ -538,6 +545,7 @@ class CoursController extends AbstractController
             $result = array_map(function (Cours $c) use ($currentUserId) {
                 $medecin = $c->getMedecin();
                 $utilisateur = $medecin?->getUtilisateur();
+                $estProprietaire = $currentUserId !== null && $utilisateur?->getId() === $currentUserId;
 
                 return [
                     'id' => $c->getId(),
@@ -551,7 +559,8 @@ class CoursController extends AbstractController
                     'typeContenu' => $c->getTypeContenu(),
                     'statut' => $c->getStatut(),
                     'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
-                    'isFavori' => $c->isFavoriByUser($currentUserId),
+                    'estProprietaire' => $estProprietaire,
+                    'isFavori' => !$estProprietaire && $c->isFavoriByUser($currentUserId),
                     'medecin' => $medecin ? [
                         'id' => $medecin->getId(),
                         'nom' => $utilisateur?->getNom(),

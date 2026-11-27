@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   BookOpen,
@@ -25,6 +25,8 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Heart,
+  User,
 } from "lucide-react";
 
 const FILES_BASE_URL = "";
@@ -385,7 +387,9 @@ export default function MesCours() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // "mes" | "tous" | "favoris"
   const [vue, setVue] = useState("mes");
+  const [togglingFavoriId, setTogglingFavoriId] = useState(null);
 
   const [coursAModifier, setCoursAModifier] = useState(null);
   const [coursASupprimer, setCoursASupprimer] = useState(null);
@@ -397,38 +401,66 @@ export default function MesCours() {
 
   const [pageActuelle, setPageActuelle] = useState(1);
 
-  // Empêche les appels concurrents
-  const isFetchingRef = useRef(false);
+  // ========== CHARGEMENT INITIAL & CHANGEMENT D'ONGLET ==========
+  useEffect(() => {
+    const controller = new AbortController();
+    const url = vue === "mes" ? "/api/cours/mes-cours" : "/api/cours/public";
 
-  // ========== FETCH (mémorisé avec useCallback) ==========
-  const fetchCours = useCallback(async (isSilent = false) => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
+    fetch(url, {
+      credentials: "include",
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          console.error("Réponse non-JSON reçue :", text.slice(0, 500));
+          throw new Error(
+            `Erreur serveur (${res.status}). Réponse non JSON. Voir la console.`
+          );
+        }
+        if (!res.ok) {
+          throw new Error(
+            data.error || data.message || "Impossible de charger les cours."
+          );
+        }
+        return data;
+      })
+      .then((data) => {
+        setCours(Array.isArray(data) ? data : []);
+        setError(null);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          setError(err.message);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
 
-    if (!isSilent) {
-      setLoading(true);
-      setError(null);
-    } else {
-      setRefreshing(true);
-    }
+    return () => controller.abort();
+  }, [vue]);
+
+  // ========== ACTUALISATION MANUELLE ==========
+  const handleRefresh = async () => {
+    if (refreshing || loading) return;
+    setRefreshing(true);
 
     try {
       const url = vue === "mes" ? "/api/cours/mes-cours" : "/api/cours/public";
-
-      const res = await fetch(url, {
-        credentials: "include",
-      });
-
+      const res = await fetch(url, { credentials: "include" });
       const text = await res.text();
       let data;
 
       try {
         data = JSON.parse(text);
       } catch {
-        console.error("Réponse non-JSON reçue :", text.slice(0, 500));
-        throw new Error(
-          `Erreur serveur (${res.status}). Réponse non JSON. Voir la console.`
-        );
+        throw new Error(`Erreur serveur (${res.status}). Réponse non JSON.`);
       }
 
       if (!res.ok) {
@@ -438,25 +470,14 @@ export default function MesCours() {
       }
 
       setCours(Array.isArray(data) ? data : []);
-      if (!isSilent) setError(null);
+      setError(null);
     } catch (err) {
-      if (!isSilent) {
-        setError(err.message);
-      }
+      setError(err.message);
     } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [vue]);
+  };
 
-  // Chargement initial + rechargement quand on change d’onglet
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching classique (chargement initial + changement d'onglet)
-    fetchCours(false);
-  }, [fetchCours]);
-
-  // Message de succès temporaire
   useEffect(() => {
     if (!successMessage) return;
 
@@ -467,10 +488,66 @@ export default function MesCours() {
     return () => clearTimeout(timer);
   }, [successMessage]);
 
+  // ========== TOGGLE FAVORI ==========
+  const handleToggleFavori = async (coursId) => {
+    if (togglingFavoriId) return;
+    setTogglingFavoriId(coursId);
+
+    // Mise à jour optimiste
+    setCours((prev) =>
+      prev.map((c) =>
+        c.id === coursId ? { ...c, isFavori: !c.isFavori } : c
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/cours/${coursId}/favori`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setCours((prev) =>
+          prev.map((c) =>
+            c.id === coursId ? { ...c, isFavori: data.isFavori } : c
+          )
+        );
+        setSuccessMessage(data.message);
+      } else {
+        setCours((prev) =>
+          prev.map((c) =>
+            c.id === coursId ? { ...c, isFavori: !c.isFavori } : c
+          )
+        );
+        setError(data.error || "Impossible de modifier les favoris.");
+      }
+    } catch (err) {
+      console.error(err);
+      setCours((prev) =>
+        prev.map((c) =>
+          c.id === coursId ? { ...c, isFavori: !c.isFavori } : c
+        )
+      );
+    } finally {
+      setTogglingFavoriId(null);
+    }
+  };
+
+  const countFavoris = useMemo(
+    () => cours.filter((c) => !c.estProprietaire && c.isFavori).length,
+    [cours]
+  );
+
   const coursFiltres = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
     return cours.filter((c) => {
+      if (vue === "favoris" && (!c.isFavori || c.estProprietaire)) {
+        return false;
+      }
+
       const matchSearch =
         !term ||
         (c.titre && c.titre.toLowerCase().includes(term)) ||
@@ -481,7 +558,7 @@ export default function MesCours() {
 
       return matchSearch && matchLangue && matchNiveau;
     });
-  }, [cours, searchTerm, filtreLangue, filtreNiveau]);
+  }, [cours, vue, searchTerm, filtreLangue, filtreNiveau]);
 
   const totalPages = Math.ceil(coursFiltres.length / COURS_PAR_PAGE);
 
@@ -511,6 +588,15 @@ export default function MesCours() {
   };
 
   const handleVueChange = (nouvelleVue) => {
+    if (nouvelleVue === vue) return;
+    // On passe loading à true uniquement lors d'un vrai changement de source de données
+    if (
+      (vue === "mes" && nouvelleVue !== "mes") ||
+      (vue !== "mes" && nouvelleVue === "mes")
+    ) {
+      setLoading(true);
+      setError(null);
+    }
     setVue(nouvelleVue);
     setPageActuelle(1);
   };
@@ -561,21 +647,26 @@ export default function MesCours() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#0F3D3E]">
-              {vue === "mes" ? "Mes cours" : "Tous les cours"}
+              {vue === "mes"
+                ? "Mes cours"
+                : vue === "favoris"
+                ? "Mes cours favoris"
+                : "Tous les cours"}
             </h1>
 
             <p className="mt-1 text-sm text-[#5C5A54]">
               {vue === "mes"
                 ? "Gérez et publiez vos cours médicaux (validation admin requise)"
+                : vue === "favoris"
+                ? "Retrouvez les cours de vos confrères enregistrés en favoris"
                 : "Parcourez les cours approuvés publiés par les autres médecins"}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Bouton Actualiser */}
             <button
               type="button"
-              onClick={() => fetchCours(true)}
+              onClick={handleRefresh}
               disabled={loading || refreshing}
               className="inline-flex items-center gap-2 rounded-xl border border-[#E4DFD3] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-sm transition hover:bg-[#FBF9F4] disabled:opacity-60"
               title="Actualiser la liste"
@@ -624,7 +715,25 @@ export default function MesCours() {
             }`}
           >
             <Users size={16} />
-            Tous les cours
+            Cours Confrères
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleVueChange("favoris")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              vue === "favoris"
+                ? "bg-[#0F3D3E] text-[#F4C95D]"
+                : "text-[#5C5A54] hover:bg-[#FBF9F4]"
+            }`}
+          >
+            <Heart
+              size={16}
+              className={
+                vue === "favoris" ? "fill-red-500 text-red-500" : ""
+              }
+            />
+            Favoris{vue !== "mes" && countFavoris > 0 ? ` (${countFavoris})` : ""}
           </button>
         </div>
 
@@ -790,13 +899,17 @@ export default function MesCours() {
             <h2 className="text-lg font-semibold text-[#0F3D3E]">
               {vue === "mes"
                 ? "Aucun cours pour le moment"
+                : vue === "favoris"
+                ? "Aucun cours favori"
                 : "Aucun cours public disponible"}
             </h2>
 
             <p className="mt-2 text-sm text-[#5C5A54]">
               {vue === "mes"
                 ? "Commencez par publier votre premier cours. Il sera visible sur la plateforme après validation par un administrateur."
-                : "Il n'y a pas encore de cours approuvés publiés par d'autres utilisateurs."}
+                : vue === "favoris"
+                ? "Cliquez sur le cœur d'un cours dans l'onglet « Cours Confrères » pour l'ajouter ici."
+                : "Il n'y a pas encore de cours approuvés publiés par d'autres médecins."}
             </p>
 
             {vue === "mes" && (
@@ -811,29 +924,46 @@ export default function MesCours() {
           </div>
         )}
 
-        {/* Aucun résultat de filtre */}
+        {/* Aucun résultat de filtre ou favoris vide */}
         {!loading &&
           !error &&
           cours.length > 0 &&
           coursFiltres.length === 0 && (
             <div className="rounded-2xl border border-dashed border-[#E4DFD3] bg-white p-10 text-center shadow-sm">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#0F3D3E]/5 text-[#0F3D3E]">
-                <Search size={22} />
+                {vue === "favoris" && !hasActiveFilters ? (
+                  <Heart size={22} />
+                ) : (
+                  <Search size={22} />
+                )}
               </div>
 
               <p className="text-sm font-medium text-[#3C3A34]">
-                Aucun cours ne correspond à votre recherche ou aux filtres
-                sélectionnés.
+                {vue === "favoris" && !hasActiveFilters
+                  ? "Vous n'avez pas encore ajouté de cours de vos confrères en favoris."
+                  : "Aucun cours ne correspond à votre recherche ou aux filtres sélectionnés."}
               </p>
 
-              <button
-                type="button"
-                onClick={resetFiltres}
-                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F3D3E] underline-offset-2 hover:underline"
-              >
-                <RotateCcw size={14} />
-                Réinitialiser la recherche et les filtres
-              </button>
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={resetFiltres}
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F3D3E] underline-offset-2 hover:underline"
+                >
+                  <RotateCcw size={14} />
+                  Réinitialiser la recherche et les filtres
+                </button>
+              ) : (
+                vue === "favoris" && (
+                  <button
+                    type="button"
+                    onClick={() => handleVueChange("tous")}
+                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F3D3E] underline-offset-2 hover:underline"
+                  >
+                    Parcourir tous les cours
+                  </button>
+                )
+              )}
             </div>
           )}
 
@@ -843,6 +973,9 @@ export default function MesCours() {
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {coursAffiches.map((c) => {
                 const contenuUrl = getContenuUrl(c.contenuCours);
+                const auteurNom = c.medecin
+                  ? `${c.medecin.prenom || ""} ${c.medecin.nom || ""}`.trim()
+                  : "";
 
                 return (
                   <article
@@ -854,12 +987,37 @@ export default function MesCours() {
                         {c.titre}
                       </h3>
 
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="rounded-full bg-[#0F3D3E]/10 px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
-                          {c.niveauCours}
-                        </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="rounded-full bg-[#0F3D3E]/10 px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
+                            {c.niveauCours}
+                          </span>
 
-                        {vue === "mes" && <StatutBadge statut={c.statut} />}
+                          {vue === "mes" && <StatutBadge statut={c.statut} />}
+                        </div>
+
+                        {vue !== "mes" && !c.estProprietaire && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFavori(c.id)}
+                            disabled={togglingFavoriId === c.id}
+                            title={
+                              c.isFavori
+                                ? "Retirer des favoris"
+                                : "Ajouter aux favoris"
+                            }
+                            className="rounded-full p-1.5 text-[#5C5A54] transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                          >
+                            <Heart
+                              size={18}
+                              className={
+                                c.isFavori
+                                  ? "fill-red-500 text-red-500"
+                                  : "text-[#5C5A54]"
+                              }
+                            />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -868,6 +1026,19 @@ export default function MesCours() {
                     </p>
 
                     <div className="space-y-2 border-t border-[#E4DFD3] pt-4 text-xs text-[#737873]">
+                      {vue !== "mes" && (
+                        <div className="flex items-center gap-2 font-medium text-[#0F3D3E]">
+                          <User size={14} />
+                          <span>
+                            {c.estProprietaire
+                              ? "Mon cours"
+                              : auteurNom
+                              ? `Dr. ${auteurNom}`
+                              : "Confrère"}
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-2">
                         <Clock size={14} />
                         <span>{c.duree} min</span>
