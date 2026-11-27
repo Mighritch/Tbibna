@@ -4,8 +4,6 @@ namespace App\Document;
 
 use App\Repository\ExamenRepository;
 use Doctrine\ODM\MongoDB\Mapping\Annotations as ODM;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 
 #[ODM\Document(collection: "examens", repositoryClass: ExamenRepository::class)]
 class Examen
@@ -43,11 +41,16 @@ class Examen
     #[ODM\Field(type: "collection")]
     private array $questions = []; // tableau de questions (simple pour commencer)
 
+    // Liste des IDs des étudiants ayant mis cet examen en favori
+    #[ODM\Field(type: "collection")]
+    private array $favorisUserIds = [];
+
     public function __construct()
     {
         $this->dateCreation = new \DateTimeImmutable();
         $this->dateModification = new \DateTimeImmutable();
         $this->questions = [];
+        $this->favorisUserIds = [];
     }
 
     // Getters & Setters
@@ -165,5 +168,38 @@ class Examen
     {
         $this->questions = $questions;
         return $this;
+    }
+
+    public function getFavorisUserIds(): array
+    {
+        return $this->favorisUserIds;
+    }
+
+    public function setFavorisUserIds(array $favorisUserIds): static
+    {
+        $this->favorisUserIds = array_values(array_unique($favorisUserIds));
+        return $this;
+    }
+
+    public function isFavoriByUser(?string $userId): bool
+    {
+        if (!$userId) {
+            return false;
+        }
+        return in_array($userId, $this->favorisUserIds, true);
+    }
+
+    public function toggleFavori(string $userId): bool
+    {
+        if ($this->isFavoriByUser($userId)) {
+            $this->favorisUserIds = array_values(array_filter(
+                $this->favorisUserIds,
+                static fn(string $id) => $id !== $userId
+            ));
+            return false;
+        }
+
+        $this->favorisUserIds[] = $userId;
+        return true;
     }
 }

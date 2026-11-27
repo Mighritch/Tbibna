@@ -56,10 +56,44 @@ class ExamenController extends AbstractController
                 'dateCreation' => $e->getDateCreation()?->format('Y-m-d H:i'),
                 'questionsCount' => $questionsCount,
                 'inscrit' => $inscrit,
+                'isFavori' => $e->isFavoriByUser($user->getId()),
             ];
         }, $examens);
 
         return $this->json($data);
+    }
+
+    /**
+     * Ajouter ou retirer un examen des favoris de l'étudiant connecté
+     */
+    #[Route('/{id}/favori', name: 'examen_toggle_favori', methods: ['POST'])]
+    #[IsGranted('ROLE_ETUDIANT')]
+    public function toggleFavori(string $id): JsonResponse
+    {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user || !$user->getId()) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $examen = $this->examenRepository->find($id);
+        if (!$examen) {
+            return $this->json(['error' => 'Examen introuvable'], Response::HTTP_NOT_FOUND);
+        }
+
+        if ($examen->getStatut() !== 'publié') {
+            return $this->json([
+                'error' => 'Ce examen ne peut pas être ajouté aux favoris'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $isFavori = $examen->toggleFavori($user->getId());
+        $this->dm->flush();
+
+        return $this->json([
+            'isFavori' => $isFavori,
+            'message' => $isFavori ? 'Examen ajouté aux favoris.' : 'Examen retiré des favoris.',
+        ]);
     }
 
     #[Route('/{id}/inscrire', name: 'examen_inscrire', methods: ['POST'])]
