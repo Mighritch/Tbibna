@@ -23,6 +23,22 @@ class ExamenRepository extends ServiceDocumentRepository
             ->toArray();
     }
 
+    /**
+     * Récupère les examens du médecin (tous statuts) + les examens publiés par d'autres médecins
+     */
+    public function findForMedecin(string $medecinId): array
+    {
+        $qb = $this->createQueryBuilder();
+        $qb->addOr($qb->expr()->field('medecinId')->equals($medecinId));
+        $qb->addOr($qb->expr()->field('statut')->equals('publié'));
+
+        return $qb
+            ->sort('dateCreation', 'desc')
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
+
     /** Tous les examens (pour l'admin), triés du plus récent */
     public function findAllOrdered(): array
     {

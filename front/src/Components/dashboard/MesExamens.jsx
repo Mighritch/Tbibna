@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Clock, Award, FileText, Search } from "lucide-react";
+import {
+  Plus,
+  Clock,
+  Award,
+  FileText,
+  Search,
+  UserCheck,
+  Users,
+  Heart,
+} from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 
 export default function MesExamens() {
   const [examens, setExamens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filtreAuteur, setFiltreAuteur] = useState("moi"); // "moi" | "confreres" | "favoris"
+  const [togglingId, setTogglingId] = useState(null);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -30,10 +41,68 @@ export default function MesExamens() {
     fetchExamens();
   }, [token]);
 
-  // Filtrage par titre
-  const filtered = examens.filter((ex) =>
-    ex.titre?.toLowerCase().includes(search.toLowerCase())
-  );
+  const handleToggleFavori = async (examenId) => {
+    if (togglingId) return;
+    setTogglingId(examenId);
+
+    // Mise à jour optimiste
+    setExamens((prev) =>
+      prev.map((ex) =>
+        ex.id === examenId ? { ...ex, isFavori: !ex.isFavori } : ex
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/examens/${examenId}/favori`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setExamens((prev) =>
+          prev.map((ex) =>
+            ex.id === examenId ? { ...ex, isFavori: data.isFavori } : ex
+          )
+        );
+      } else {
+        // Annuler si erreur serveur
+        setExamens((prev) =>
+          prev.map((ex) =>
+            ex.id === examenId ? { ...ex, isFavori: !ex.isFavori } : ex
+          )
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      setExamens((prev) =>
+        prev.map((ex) =>
+          ex.id === examenId ? { ...ex, isFavori: !ex.isFavori } : ex
+        )
+      );
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  // Compteurs pour les onglets
+  const countMoi = examens.filter((ex) => ex.estProprietaire).length;
+  const countConfreres = examens.filter((ex) => !ex.estProprietaire).length;
+  const countFavoris = examens.filter(
+    (ex) => !ex.estProprietaire && ex.isFavori
+  ).length;
+
+  // Filtrage par onglet et par titre
+  const filtered = examens.filter((ex) => {
+    const matchSearch = ex.titre?.toLowerCase().includes(search.toLowerCase());
+    if (!matchSearch) return false;
+
+    if (filtreAuteur === "moi") return ex.estProprietaire;
+    if (filtreAuteur === "favoris") return !ex.estProprietaire && ex.isFavori;
+    return !ex.estProprietaire;
+  });
 
   if (loading) {
     return (
@@ -48,10 +117,10 @@ export default function MesExamens() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-serif text-3xl font-semibold text-[#0F3D3E]">
-            Mes Examens
+            Examens
           </h1>
           <p className="mt-1 text-sm text-[#737873]">
-            Gérez les examens que vous avez créés
+            Gérez vos examens et consultez ceux validés des autres médecins
           </p>
         </div>
 
@@ -64,19 +133,65 @@ export default function MesExamens() {
         </Link>
       </div>
 
-      {/* Barre de recherche */}
-      <div className="mb-8 relative max-w-md">
-        <Search
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
-        />
-        <input
-          type="text"
-          placeholder="Rechercher un examen par titre..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-[#E6E1D5] bg-white py-3 pl-10 pr-4 text-sm text-[#0F3D3E] placeholder:text-[#A0A0A0] focus:border-[#0F3D3E] focus:outline-none focus:ring-2 focus:ring-[#0F3D3E]/20"
-        />
+      {/* Onglets de filtre + Barre de recherche */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="inline-flex rounded-xl border border-[#E6E1D5] bg-[#FAF8F5] p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setFiltreAuteur("moi")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              filtreAuteur === "moi"
+                ? "bg-white text-[#0F3D3E] shadow-sm"
+                : "text-[#737873] hover:text-[#0F3D3E]"
+            }`}
+          >
+            Mes examens ({countMoi})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltreAuteur("confreres")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              filtreAuteur === "confreres"
+                ? "bg-white text-[#0F3D3E] shadow-sm"
+                : "text-[#737873] hover:text-[#0F3D3E]"
+            }`}
+          >
+            Confrères ({countConfreres})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltreAuteur("favoris")}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              filtreAuteur === "favoris"
+                ? "bg-white text-[#0F3D3E] shadow-sm"
+                : "text-[#737873] hover:text-[#0F3D3E]"
+            }`}
+          >
+            <Heart
+              size={14}
+              className={
+                filtreAuteur === "favoris"
+                  ? "fill-red-500 text-red-500"
+                  : "text-[#737873]"
+              }
+            />
+            Favoris ({countFavoris})
+          </button>
+        </div>
+
+        <div className="relative w-full md:max-w-md">
+          <Search
+            size={18}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
+          />
+          <input
+            type="text"
+            placeholder="Rechercher un examen par titre..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-xl border border-[#E6E1D5] bg-white py-2.5 pl-10 pr-4 text-sm text-[#0F3D3E] placeholder:text-[#A0A0A0] focus:border-[#0F3D3E] focus:outline-none focus:ring-2 focus:ring-[#0F3D3E]/20"
+          />
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -85,14 +200,22 @@ export default function MesExamens() {
           <p className="text-[#0F3D3E] font-medium">
             {search
               ? "Aucun examen ne correspond à votre recherche"
+              : filtreAuteur === "favoris"
+              ? "Aucun examen en favori"
+              : filtreAuteur === "confreres"
+              ? "Aucun examen publié par d'autres médecins"
               : "Aucun examen pour le moment"}
           </p>
           <p className="text-sm text-[#737873] mt-1">
             {search
               ? "Essayez avec un autre mot-clé."
+              : filtreAuteur === "favoris"
+              ? "Cliquez sur le cœur d'un examen d'un confrère pour l'ajouter ici."
+              : filtreAuteur === "confreres"
+              ? "Les examens validés par l'administrateur apparaîtront ici."
               : "Commencez par créer votre premier examen."}
           </p>
-          {!search && (
+          {!search && filtreAuteur === "moi" && (
             <Link
               to="/dashboard/medecin/examens/ajouter"
               className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#0F3D3E]/20 bg-white px-5 py-2.5 text-sm font-semibold text-[#0F3D3E] shadow-sm hover:bg-[#FAF8F5] hover:border-[#0F3D3E]/40 transition"
@@ -107,39 +230,80 @@ export default function MesExamens() {
           {filtered.map((examen) => (
             <div
               key={examen.id}
-              className="rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm hover:shadow-md transition"
+              className="flex flex-col justify-between rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm hover:shadow-md transition"
             >
-              <div className="flex items-start justify-between">
+              <div>
+                {/* Badge propriétaire / confrère + statut + bouton favori */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  {examen.estProprietaire ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-[#0F3D3E]/10 text-[#0F3D3E]">
+                      <UserCheck size={12} />
+                      Mon examen
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
+                      <Users size={12} />
+                      {examen.auteurNom ? `Dr. ${examen.auteurNom}` : "Confrère"}
+                    </span>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                        examen.statut === "publié"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {examen.statut}
+                    </span>
+
+                    {!examen.estProprietaire && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFavori(examen.id)}
+                        disabled={togglingId === examen.id}
+                        title={
+                          examen.isFavori
+                            ? "Retirer des favoris"
+                            : "Ajouter aux favoris"
+                        }
+                        className="rounded-full p-1.5 text-[#737873] hover:bg-red-50 hover:text-red-500 transition disabled:opacity-50"
+                      >
+                        <Heart
+                          size={18}
+                          className={
+                            examen.isFavori
+                              ? "fill-red-500 text-red-500"
+                              : "text-[#737873]"
+                          }
+                        />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <h3 className="font-semibold text-[#0F3D3E] text-lg line-clamp-2">
                   {examen.titre}
                 </h3>
-                <span
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                    examen.statut === "publié"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {examen.statut}
-                </span>
-              </div>
 
-              <div className="mt-4 space-y-2 text-sm text-[#737873]">
-                <div className="flex items-center gap-2">
-                  <Clock size={14} />
-                  {examen.duree} min
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award size={14} />
-                  {examen.pointsTotaux} points (passage : {examen.pointsDePassage})
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileText size={14} />
-                  {examen.questionsCount} question(s)
+                <div className="mt-4 space-y-2 text-sm text-[#737873]">
+                  <div className="flex items-center gap-2">
+                    <Clock size={14} />
+                    {examen.duree} min
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Award size={14} />
+                    {examen.pointsTotaux} points (passage : {examen.pointsDePassage})
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileText size={14} />
+                    {examen.questionsCount} question(s)
+                  </div>
                 </div>
               </div>
 
-              <p className="mt-3 text-xs text-[#A0A0A0]">
+              <p className="mt-4 pt-3 border-t border-[#E6E1D5]/60 text-xs text-[#A0A0A0]">
                 Créé le {examen.dateCreation}
               </p>
             </div>

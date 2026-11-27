@@ -9,6 +9,7 @@ use App\Repository\ExamenRepository;
 use App\Repository\InscriptionExamenRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -64,10 +65,10 @@ class ExamenController extends AbstractController
     }
 
     /**
-     * Ajouter ou retirer un examen des favoris de l'étudiant connecté
+     * Ajouter ou retirer un examen des favoris (étudiant ou médecin pour les examens des confrères)
      */
     #[Route('/{id}/favori', name: 'examen_toggle_favori', methods: ['POST'])]
-    #[IsGranted('ROLE_ETUDIANT')]
+    #[IsGranted(new Expression("is_granted('ROLE_ETUDIANT') or is_granted('ROLE_MEDECIN')"))]
     public function toggleFavori(string $id): JsonResponse
     {
         /** @var User|null $user */
@@ -83,7 +84,14 @@ class ExamenController extends AbstractController
 
         if ($examen->getStatut() !== 'publié') {
             return $this->json([
-                'error' => 'Ce examen ne peut pas être ajouté aux favoris'
+                'error' => 'Cet examen ne peut pas être ajouté aux favoris'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Un médecin ne peut pas ajouter son propre examen aux favoris
+        if ($examen->getMedecinId() === $user->getId()) {
+            return $this->json([
+                'error' => 'Vous ne pouvez pas ajouter votre propre examen aux favoris'
             ], Response::HTTP_BAD_REQUEST);
         }
 
@@ -243,11 +251,22 @@ class ExamenController extends AbstractController
             return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $examens = $this->examenRepository->findByMedecin($user->getId());
+        $examens = $this->examenRepository->findForMedecin($user->getId());
 
-        $data = array_map(function (Examen $e) {
+        $data = array_map(function (Examen $e) use ($user) {
             $questions = $e->getQuestions();
             $questionsCount = is_countable($questions) ? count($questions) : 0;
+            $estProprietaire = $e->getMedecinId() === $user->getId();
+
+            $auteurNom = null;
+            if (!$estProprietaire && $e->getMedecinId()) {
+                $auteur = $this->dm->getRepository(User::class)->find($e->getMedecinId());
+                if ($auteur) {
+                    $auteurNom = method_exists($auteur, 'getNomComplet')
+                        ? $auteur->getNomComplet()
+                        : trim(($auteur->getPrenom() ?? '') . ' ' . ($auteur->getNom() ?? ''));
+                }
+            }
 
             return [
                 'id' => $e->getId(),
@@ -259,6 +278,9 @@ class ExamenController extends AbstractController
                 'statut' => $e->getStatut(),
                 'dateCreation' => $e->getDateCreation()?->format('Y-m-d H:i'),
                 'questionsCount' => $questionsCount,
+                'estProprietaire' => $estProprietaire,
+                'auteurNom' => $auteurNom ?: null,
+                'isFavori' => !$estProprietaire && $e->isFavoriByUser($user->getId()),
             ];
         }, $examens);
 
@@ -323,7 +345,9 @@ class ExamenController extends AbstractController
             return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
         }
 
-        if ($examen->getMedecinId() !== $user->getId()) {
+        $estProprietaire = $examen->getMedecinId() === $user->getId();
+
+        if (!$estProprietaire && $examen->getStatut() !== 'publié') {
             return $this->json(['error' => 'Accès refusé'], Response::HTTP_FORBIDDEN);
         }
 
@@ -337,6 +361,8 @@ class ExamenController extends AbstractController
             'statut' => $examen->getStatut(),
             'questions' => $examen->getQuestions(),
             'dateCreation' => $examen->getDateCreation()?->format('Y-m-d H:i'),
+            'estProprietaire' => $estProprietaire,
+            'isFavori' => !$estProprietaire && $examen->isFavoriByUser($user->getId()),
         ]);
     }
 }
