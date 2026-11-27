@@ -5,6 +5,7 @@ import {
   Users,
   Clock,
   CalendarDays,
+  ArrowUpDown,
   User as UserIcon,
 } from "lucide-react";
 
@@ -13,11 +14,26 @@ const fmt = (iso) =>
     ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })
     : "—";
 
+const TRIS = {
+  date: { label: "Date (par défaut)", fn: null },
+  prix_asc: { label: "Prix : croissant", fn: (a, b) => (a.prix ?? 0) - (b.prix ?? 0) },
+  prix_desc: { label: "Prix : décroissant", fn: (a, b) => (b.prix ?? 0) - (a.prix ?? 0) },
+  part_asc: {
+    label: "Participants : croissant",
+    fn: (a, b) => (a.nombreDeParticipant ?? 0) - (b.nombreDeParticipant ?? 0),
+  },
+  part_desc: {
+    label: "Participants : décroissant",
+    fn: (a, b) => (b.nombreDeParticipant ?? 0) - (a.nombreDeParticipant ?? 0),
+  },
+};
+
 export default function EvenementsEtudiant() {
   const [evenements, setEvenements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("date");
 
   useEffect(() => {
     let cancelled = false;
@@ -40,31 +56,54 @@ export default function EvenementsEtudiant() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return evenements;
-    return evenements.filter((e) =>
-      [e.titre, e.description, e.localisation, e.auteurNom]
-        .filter(Boolean)
-        .some((v) => v.toLowerCase().includes(q))
-    );
-  }, [evenements, search]);
+
+    let list = q
+      ? evenements.filter((e) => (e.titre ?? "").toLowerCase().includes(q))
+      : [...evenements];
+
+    const sorter = TRIS[sortBy]?.fn;
+    if (sorter) list = [...list].sort(sorter);
+
+    return list;
+  }, [evenements, search, sortBy]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-serif text-3xl font-semibold text-[#0F3D3E]">Évènements</h1>
 
-        <div className="relative w-full sm:w-80">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
-          />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un évènement..."
-            className="w-full rounded-xl border border-[#E6E1D5] bg-white py-3 pl-9 pr-4 text-sm text-[#0F3D3E] shadow-sm outline-none transition focus:border-[#2A6B59]"
-          />
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <div className="relative w-full sm:w-72">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher par titre..."
+              className="w-full rounded-xl border border-[#E6E1D5] bg-white py-3 pl-9 pr-4 text-sm text-[#0F3D3E] shadow-sm outline-none transition focus:border-[#2A6B59]"
+            />
+          </div>
+
+          <div className="relative w-full sm:w-60">
+            <ArrowUpDown
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
+            />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full appearance-none rounded-xl border border-[#E6E1D5] bg-white py-3 pl-9 pr-4 text-sm text-[#0F3D3E] shadow-sm outline-none transition focus:border-[#2A6B59]"
+            >
+              {Object.entries(TRIS).map(([key, t]) => (
+                <option key={key} value={key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -78,7 +117,9 @@ export default function EvenementsEtudiant() {
 
       {!loading && !error && filtered.length === 0 && (
         <div className="rounded-2xl border border-dashed border-[#E6E1D5] bg-white p-10 text-center text-sm text-[#737873]">
-          Aucun évènement disponible pour le moment.
+          {search.trim()
+            ? "Aucun évènement ne correspond à votre recherche."
+            : "Aucun évènement disponible pour le moment."}
         </div>
       )}
 

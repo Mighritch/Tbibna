@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
+  Search,
+  ArrowUpDown,
   MapPin,
   Users,
   Clock,
@@ -43,11 +45,27 @@ const STATUTS = {
   },
 };
 
+const TRIS = {
+  date: { label: "Date (par défaut)", fn: null },
+  prix_asc: { label: "Prix : croissant", fn: (a, b) => (a.prix ?? 0) - (b.prix ?? 0) },
+  prix_desc: { label: "Prix : décroissant", fn: (a, b) => (b.prix ?? 0) - (a.prix ?? 0) },
+  part_asc: {
+    label: "Participants : croissant",
+    fn: (a, b) => (a.nombreDeParticipant ?? 0) - (b.nombreDeParticipant ?? 0),
+  },
+  part_desc: {
+    label: "Participants : décroissant",
+    fn: (a, b) => (b.nombreDeParticipant ?? 0) - (a.nombreDeParticipant ?? 0),
+  },
+};
+
 export default function MesEvenements() {
   const [evenements, setEvenements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("date");
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +85,19 @@ export default function MesEvenements() {
       cancelled = true;
     };
   }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+
+    let list = q
+      ? evenements.filter((e) => (e.titre ?? "").toLowerCase().includes(q))
+      : [...evenements];
+
+    const sorter = TRIS[sortBy]?.fn;
+    if (sorter) list = [...list].sort(sorter);
+
+    return list;
+  }, [evenements, search, sortBy]);
 
   const handleDelete = async (id, titre) => {
     if (!window.confirm(`Voulez-vous vraiment supprimer l'évènement « ${titre} » ?`)) {
@@ -107,6 +138,40 @@ export default function MesEvenements() {
         </Link>
       </div>
 
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row">
+        <div className="relative w-full sm:w-80">
+          <Search
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher par titre..."
+            className="w-full rounded-xl border border-[#E6E1D5] bg-white py-3 pl-9 pr-4 text-sm text-[#0F3D3E] shadow-sm outline-none transition focus:border-[#2A6B59]"
+          />
+        </div>
+
+        <div className="relative w-full sm:w-60">
+          <ArrowUpDown
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#737873]"
+          />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full appearance-none rounded-xl border border-[#E6E1D5] bg-white py-3 pl-9 pr-4 text-sm text-[#0F3D3E] shadow-sm outline-none transition focus:border-[#2A6B59]"
+          >
+            {Object.entries(TRIS).map(([key, t]) => (
+              <option key={key} value={key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {loading && <p className="text-sm text-[#737873]">Chargement...</p>}
       {error && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -114,14 +179,16 @@ export default function MesEvenements() {
         </div>
       )}
 
-      {!loading && !error && evenements.length === 0 && (
+      {!loading && !error && filtered.length === 0 && (
         <div className="rounded-2xl border border-dashed border-[#E6E1D5] bg-white p-10 text-center text-sm text-[#737873]">
-          Aucun évènement pour le moment.
+          {search.trim()
+            ? "Aucun évènement ne correspond à votre recherche."
+            : "Aucun évènement pour le moment."}
         </div>
       )}
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {evenements.map((e) => {
+        {filtered.map((e) => {
           const st = STATUTS[e.statut] ?? STATUTS.en_attente;
           const StatutIcon = st.icon;
 
