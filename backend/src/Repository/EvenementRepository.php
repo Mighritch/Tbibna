@@ -40,6 +40,24 @@ class EvenementRepository extends ServiceDocumentRepository
         return $this->findBy(['auteurId' => $auteurId], ['dateDebut' => 'DESC']);
     }
 
+    /**
+     * Espace médecin :
+     * Ses propres évènements (tous statuts) + les évènements acceptés des autres médecins
+     */
+    public function findForMedecin(string $auteurId): array
+    {
+        $qb = $this->createQueryBuilder();
+        $qb->addOr($qb->expr()->field('auteurId')->equals($auteurId));
+        $qb->addOr(
+            $qb->expr()
+                ->field('statut')->equals(Evenement::STATUT_ACCEPTE)
+                ->field('auteurId')->notEqual($auteurId)
+        );
+        $qb->sort('dateDebut', 'DESC');
+
+        return $qb->getQuery()->execute()->toArray();
+    }
+
     /** Vue admin : tous les évènements, filtrables par statut */
     public function findForAdmin(?string $statut = null): array
     {

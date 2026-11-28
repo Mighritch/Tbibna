@@ -52,14 +52,11 @@ class EvenementController extends AbstractController
         }
 
         $userId = $this->currentUserId();
-        $isFavori = $evenement->toggleFavori($userId);
+        $evenement->toggleFavori($userId);
 
         $dm->flush();
 
-        return $this->json([
-            'id' => $evenement->getId(),
-            'isFavori' => $isFavori,
-        ]);
+        return $this->json($this->serialize($evenement, $userId));
     }
 
     #[Route('/evenements/{id}', name: 'api_evenement_show', methods: ['GET'])]
@@ -75,26 +72,29 @@ class EvenementController extends AbstractController
             return $this->json(['message' => 'Évènement introuvable.'], 404);
         }
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            [$auteurId] = $this->auteur();
+        $userId = $this->currentUserId();
 
-            if ($evenement->getAuteurId() !== $auteurId) {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            $isOwner = $evenement->getAuteurId() === $userId;
+            $isAccepted = $evenement->getStatut() === Evenement::STATUT_ACCEPTE;
+
+            if (!$isOwner && !$isAccepted) {
                 return $this->json(['message' => 'Accès refusé à cet évènement.'], 403);
             }
         }
 
-        return $this->json($this->serialize($evenement));
+        return $this->json($this->serialize($evenement, $userId));
     }
 
     #[Route('/evenements', name: 'api_evenement_index', methods: ['GET'])]
     #[IsGranted('ROLE_MEDECIN')]
     public function index(EvenementRepository $repo): JsonResponse
     {
-        [$auteurId] = $this->auteur();
-        $evenements = $repo->findByAuteur($auteurId);
+        $userId = $this->currentUserId();
+        $evenements = $repo->findForMedecin($userId);
 
         return $this->json(
-            array_map(fn (Evenement $e) => $this->serialize($e), $evenements)
+            array_map(fn (Evenement $e) => $this->serialize($e, $userId), $evenements)
         );
     }
 
@@ -138,7 +138,7 @@ class EvenementController extends AbstractController
         $dm->persist($evenement);
         $dm->flush();
 
-        return $this->json($this->serialize($evenement), 201);
+        return $this->json($this->serialize($evenement, $auteurId), 201);
     }
 
     #[Route('/evenements/{id}', name: 'api_evenement_edit', methods: ['PUT'])]
@@ -195,7 +195,7 @@ class EvenementController extends AbstractController
 
         $dm->flush();
 
-        return $this->json($this->serialize($evenement));
+        return $this->json($this->serialize($evenement, $auteurId));
     }
 
     #[Route('/evenements/{id}', name: 'api_evenement_delete', methods: ['DELETE'])]
@@ -244,9 +244,10 @@ class EvenementController extends AbstractController
         }
 
         $evenements = $repo->findForAdmin($statut);
+        $userId = $this->currentUserId();
 
         return $this->json(
-            array_map(fn (Evenement $e) => $this->serialize($e), $evenements)
+            array_map(fn (Evenement $e) => $this->serialize($e, $userId), $evenements)
         );
     }
 
@@ -270,7 +271,7 @@ class EvenementController extends AbstractController
 
         $dm->flush();
 
-        return $this->json($this->serialize($evenement));
+        return $this->json($this->serialize($evenement, $this->currentUserId()));
     }
 
     #[Route('/admin/evenements/{id}/refuser', name: 'api_admin_evenement_refuser', methods: ['PATCH'])]
@@ -302,7 +303,7 @@ class EvenementController extends AbstractController
 
         $dm->flush();
 
-        return $this->json($this->serialize($evenement));
+        return $this->json($this->serialize($evenement, $this->currentUserId()));
     }
 
     private function validatePayload(array $data): array
@@ -416,6 +417,8 @@ class EvenementController extends AbstractController
 
     private function serialize(Evenement $e, ?string $userId = null): array
     {
+        $userId ??= $this->currentUserId();
+
         return [
             'id' => $e->getId(),
             'titre' => $e->getTitre(),
@@ -430,6 +433,7 @@ class EvenementController extends AbstractController
             'auteurNom' => $e->getAuteurNom(),
             'motifRefus' => $e->getMotifRefus(),
             'dateDecision' => $e->getDateDecision()?->format(\DateTimeInterface::ATOM),
+            'isMine' => $userId !== null && $e->getAuteurId() === $userId,
             'isFavori' => $e->isFavoriBy($userId),
         ];
     }
