@@ -20,10 +20,10 @@ import {
   Users,
   FileText,
   Send,
-  Heart, // ← nouveau
+  Heart,
 } from "lucide-react";
 
-const ITEMS_PER_PAGE = 3;
+const ITEMS_PER_PAGE = 4;
 const POLL_INTERVAL = 5000;
 
 function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
@@ -86,7 +86,7 @@ export default function MesActivites() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [favoritingId, setFavoritingId] = useState(null); // ← nouveau
+  const [favoritingId, setFavoritingId] = useState(null);
 
   const [vue, setVue] = useState("mes");
 
@@ -276,14 +276,12 @@ export default function MesActivites() {
         throw new Error(data.message || "Erreur lors de la mise à jour des favoris");
       }
 
-      // Mise à jour optimiste
       setActivites((prev) =>
         prev.map((a) =>
           a.id === act.id ? { ...a, isFavori: data.isFavori } : a
         )
       );
 
-      // Si on est dans le modal de visualisation, on met aussi à jour
       setViewingActivite((prev) =>
         prev && prev.id === act.id
           ? { ...prev, isFavori: data.isFavori }
@@ -576,7 +574,10 @@ export default function MesActivites() {
               <label className="text-xs text-[#5C5A54]">Difficulté</label>
               <select
                 value={sortDifficulte}
-                onChange={(e) => setSortDifficulte(e.target.value)}
+                onChange={(e) => {
+                  setSortDifficulte(e.target.value);
+                  setPage(1);
+                }}
                 className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
               >
                 <option value="">Toutes</option>
@@ -591,7 +592,10 @@ export default function MesActivites() {
                 <label className="text-xs text-[#5C5A54]">Statut</label>
                 <select
                   value={sortStatut}
-                  onChange={(e) => setSortStatut(e.target.value)}
+                  onChange={(e) => {
+                    setSortStatut(e.target.value);
+                    setPage(1);
+                  }}
                   className="rounded-xl border border-[#E4DFD3] bg-[#FAF8F5] px-3 py-2 text-sm text-[#0F3D3E] outline-none focus:border-[#0F3D3E] focus:ring-2 focus:ring-[#0F3D3E]/10"
                 >
                   <option value="">Tous</option>
@@ -608,6 +612,7 @@ export default function MesActivites() {
                 onClick={() => {
                   setSortDifficulte("");
                   setSortStatut("");
+                  setPage(1);
                 }}
                 className="ml-auto text-xs font-medium text-[#0F3D3E] underline hover:no-underline"
               >
@@ -866,7 +871,6 @@ export default function MesActivites() {
                 </p>
               </div>
 
-              {/* Bouton favoris aussi dans le modal (vue "tous") */}
               {vue === "tous" && (
                 <div className="pt-2">
                   <button

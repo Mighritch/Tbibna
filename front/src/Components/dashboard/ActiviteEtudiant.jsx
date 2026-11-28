@@ -18,7 +18,7 @@ import {
   UserMinus,
 } from "lucide-react";
 
-const ITEMS_PER_PAGE = 3;
+const ITEMS_PER_PAGE = 4;
 
 function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
   if (totalItems <= ITEMS_PER_PAGE) return null;
@@ -337,7 +337,6 @@ export default function ActivitesEtudiant() {
 
     if (!viewingActivite) return;
 
-    // Double sécurité côté front
     if (!viewingActivite.isParticipant) {
       setSubmitError(
         "Vous devez d'abord rejoindre cette activité avant de pouvoir soumettre votre travail."
@@ -698,7 +697,6 @@ export default function ActivitesEtudiant() {
                 </p>
               </div>
 
-              {/* === BOUTON REJOINDRE / QUITTER === */}
               {!viewingActivite.aDejaSoumis && (
                 <div className="border-t border-[#E4DFD3] pt-6">
                   <button
