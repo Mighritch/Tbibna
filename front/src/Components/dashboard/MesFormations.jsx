@@ -14,6 +14,8 @@ import {
   X,
   ArrowUpDown,
   Filter,
+  Heart,
+  UserCheck,
 } from "lucide-react";
 
 const API = "http://localhost:8000/api/formations";
@@ -43,6 +45,12 @@ export default function MesFormations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Onglet actif : "toutes" | "mine" | "autres" | "favoris"
+  const [activeTab, setActiveTab] = useState("toutes");
+
+  // Suivi du chargement lors du clic sur le bouton favori
+  const [togglingFavoriId, setTogglingFavoriId] = useState(null);
+
   // recherche par titre
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -68,7 +76,7 @@ export default function MesFormations() {
   useEffect(() => {
     let cancelled = false;
 
-    fetch(`${API}/mes-formations`, {
+    fetch(`${API}/catalogue-medecin`, {
       method: "GET",
       credentials: "include",
       headers: { Accept: "application/json" },
@@ -100,6 +108,33 @@ export default function MesFormations() {
       cancelled = true;
     };
   }, []);
+
+  // Ajouter / Retirer une formation des favoris
+  const handleToggleFavori = async (formation) => {
+    if (togglingFavoriId || formation.statut !== "acceptee") return;
+    setTogglingFavoriId(formation.id);
+
+    try {
+      const res = await fetch(`${API}/${formation.id}/favori`, {
+        method: "POST",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+
+      if (!res.ok) {
+        throw new Error("Impossible de mettre à jour les favoris.");
+      }
+
+      const updated = await res.json();
+      setFormations((prev) =>
+        prev.map((item) => (item.id === updated.id ? updated : item))
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTogglingFavoriId(null);
+    }
+  };
 
   const confirmDelete = async () => {
     if (!toDelete) return;
@@ -170,8 +205,17 @@ export default function MesFormations() {
     setDateDebutFilter("");
   };
 
-  // 1. Filtrage par titre + statut + prix + date choisie dans le calendrier
+  // Compteurs pour les onglets
+  const countMine = formations.filter((f) => f.isMine).length;
+  const countAutres = formations.filter((f) => !f.isMine).length;
+  const countFavoris = formations.filter((f) => f.isFavori).length;
+
+  // 1. Filtrage par onglet + titre + statut + prix + date choisie dans le calendrier
   const filteredFormations = formations.filter((f) => {
+    if (activeTab === "mine" && !f.isMine) return false;
+    if (activeTab === "autres" && f.isMine) return false;
+    if (activeTab === "favoris" && !f.isFavori) return false;
+
     const matchTitre = f.titre
       ?.toLowerCase()
       .includes(searchQuery.trim().toLowerCase());
@@ -222,10 +266,16 @@ export default function MesFormations() {
   });
 
   const hasActiveFilter = Boolean(
-    searchQuery || statutFilter || sortPrix || dateDebutFilter || dateFinFilter
+    activeTab !== "toutes" ||
+      searchQuery ||
+      statutFilter ||
+      sortPrix ||
+      dateDebutFilter ||
+      dateFinFilter
   );
 
   const resetAllFilters = () => {
+    setActiveTab("toutes");
     setSearchQuery("");
     setStatutFilter("");
     setSortPrix("");
@@ -244,13 +294,13 @@ export default function MesFormations() {
   return (
     <div className="min-h-screen bg-[#FAF8F5] py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-2xl font-semibold text-[#0F3D3E]">
-              Mes formations
+              Formations médicales
             </h1>
             <p className="text-sm text-[#737873]">
-              Une formation n'est visible par les étudiants qu'après validation par l'administrateur
+              Gérez vos propres formations et explorez celles validées de vos confrères
             </p>
           </div>
 
@@ -262,6 +312,56 @@ export default function MesFormations() {
             Nouvelle formation
           </Link>
         </div>
+
+        {/* Onglets : Toutes / Mes formations / Autres médecins / Mes favoris */}
+        {!error && formations.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2 border-b border-[#E6E1D5] pb-4">
+          
+            <button
+              type="button"
+              onClick={() => setActiveTab("mine")}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                activeTab === "mine"
+                  ? "bg-[#0F3D3E] text-white shadow-sm"
+                  : "border border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#F3EFE6]"
+              }`}
+            >
+              Mes formations ({countMine})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("autres")}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                activeTab === "autres"
+                  ? "bg-[#0F3D3E] text-white shadow-sm"
+                  : "border border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#F3EFE6]"
+              }`}
+            >
+              Formations confrères ({countAutres})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("favoris")}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition ${
+                activeTab === "favoris"
+                  ? "bg-[#0F3D3E] text-white shadow-sm"
+                  : "border border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#F3EFE6]"
+              }`}
+            >
+              <Heart
+                size={15}
+                className={
+                  activeTab === "favoris"
+                    ? "fill-red-400 text-red-400"
+                    : "text-red-500"
+                }
+              />
+              Mes favoris ({countFavoris})
+            </button>
+          </div>
+        )}
 
         {/* Barre de recherche par titre + Statut + Prix + Calendriers Date début / Date fin */}
         {!error && formations.length > 0 && (
@@ -487,15 +587,56 @@ export default function MesFormations() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {sortedFormations.map((f) => {
               const statut = STATUT_UI[f.statut] || STATUT_UI.en_attente;
+              const isAcceptee = f.statut === "acceptee";
+
               return (
                 <div
                   key={f.id}
                   className="flex flex-col rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
                 >
-                  <div className="mb-3">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statut.cls}`}>
-                      {statut.label}
-                    </span>
+                  {/* En-tête : Statut / Auteur + Bouton Favori */}
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {f.isMine ? (
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statut.cls}`}>
+                          {statut.label}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#F3EFE6] px-2.5 py-0.5 text-xs font-medium text-[#0F3D3E]">
+                          <UserCheck size={12} />
+                          Confrère
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bouton Favori (disponible sur toute formation acceptée) */}
+                    {isAcceptee && (
+                      <button
+                        type="button"
+                        disabled={togglingFavoriId === f.id}
+                        onClick={() => handleToggleFavori(f)}
+                        title={
+                          f.isFavori
+                            ? "Retirer des favoris"
+                            : "Ajouter aux favoris"
+                        }
+                        aria-label={
+                          f.isFavori
+                            ? "Retirer des favoris"
+                            : "Ajouter aux favoris"
+                        }
+                        className={`rounded-full p-2 transition ${
+                          f.isFavori
+                            ? "bg-red-50 text-red-600 hover:bg-red-100"
+                            : "bg-[#FAF8F5] text-[#737873] hover:bg-[#F3EFE6] hover:text-red-500"
+                        } disabled:opacity-50`}
+                      >
+                        <Heart
+                          size={16}
+                          className={f.isFavori ? "fill-red-500 text-red-500" : ""}
+                        />
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex items-start justify-between gap-2">
@@ -512,6 +653,12 @@ export default function MesFormations() {
                       </span>
                     )}
                   </div>
+
+                  {!f.isMine && f.createdBy && (
+                    <p className="mt-1 truncate text-xs text-[#737873]">
+                      Proposée par : <span className="font-medium text-[#0F3D3E]">{f.createdBy}</span>
+                    </p>
+                  )}
 
                   <p className="mt-2 line-clamp-2 text-sm text-[#737873]">
                     {f.description}
@@ -530,29 +677,36 @@ export default function MesFormations() {
                   </div>
 
                   {/* Actions */}
-                  <div className="mt-5 flex gap-2 border-t border-[#E6E1D5] pt-4">
-                    <Link
-                      to={`/dashboard/medecin/formations/${f.id}`}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
-                    >
-                      <Eye size={14} /> Voir
-                    </Link>
-                    <Link
-                      to={`/dashboard/medecin/formations/${f.id}/modifier`}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
-                    >
-                      <Pencil size={14} /> Modifier
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeleteError(null);
-                        setToDelete(f);
-                      }}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                    >
-                      <Trash2 size={14} /> Supprimer
-                    </button>
+                  <div className="mt-auto pt-5">
+                    <div className="flex gap-2 border-t border-[#E6E1D5] pt-4">
+                      <Link
+                        to={`/dashboard/medecin/formations/${f.id}`}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                      >
+                        <Eye size={14} /> Voir
+                      </Link>
+
+                      {f.isMine && (
+                        <>
+                          <Link
+                            to={`/dashboard/medecin/formations/${f.id}/modifier`}
+                            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E6E1D5] px-3 py-2 text-xs font-semibold text-[#0F3D3E] transition hover:bg-[#FAF8F5]"
+                          >
+                            <Pencil size={14} /> Modifier
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteError(null);
+                              setToDelete(f);
+                            }}
+                            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                          >
+                            <Trash2 size={14} /> Supprimer
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

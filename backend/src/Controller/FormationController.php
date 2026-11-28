@@ -54,6 +54,16 @@ class FormationController extends AbstractController
         return $this->json(array_map(fn(Formation $f) => $this->serialize($f), $formations));
     }
 
+    /** Formations du médecin connecté (tous statuts) + formations acceptées des autres médecins */
+    #[Route('/catalogue-medecin', name: 'api_formations_medecin_catalogue', methods: ['GET'])]
+    #[IsGranted('ROLE_MEDECIN')]
+    public function catalogueMedecin(): JsonResponse
+    {
+        $formations = $this->repository->findForMedecin($this->getUser()->getUserIdentifier());
+
+        return $this->json(array_map(fn(Formation $f) => $this->serialize($f), $formations));
+    }
+
     /** Liste admin : toutes les formations (filtre optionnel ?statut=en_attente) */
     #[Route('/admin', name: 'api_formations_admin_list', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
@@ -301,6 +311,7 @@ class FormationController extends AbstractController
             'objectifs'   => $f->getObjectifs(),
             'statut'      => $f->getStatut(),
             'createdBy'   => $f->getCreatedBy(),
+            'isMine'      => $userIdentifier !== null && $f->getCreatedBy() === $userIdentifier,
             'isFavori'    => $f->isFavoriBy($userIdentifier),
         ];
     }

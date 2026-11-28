@@ -28,6 +28,24 @@ class FormationRepository extends ServiceDocumentRepository
         return $this->findBy(['createdBy' => $identifier], ['id' => 'desc']);
     }
 
+    /**
+     * Pour l'espace médecin :
+     * Retourne ses propres formations (tous statuts) + les formations acceptées des autres médecins
+     */
+    public function findForMedecin(string $identifier): array
+    {
+        $qb = $this->createQueryBuilder();
+        $qb->addOr($qb->expr()->field('createdBy')->equals($identifier));
+        $qb->addOr(
+            $qb->expr()
+                ->field('statut')->equals(Formation::STATUT_ACCEPTEE)
+                ->field('createdBy')->notEqual($identifier)
+        );
+        $qb->sort('id', 'desc');
+
+        return $qb->getQuery()->execute()->toArray();
+    }
+
     /** Formations acceptées mises en favoris par un utilisateur */
     public function findFavorisByUser(string $identifier): array
     {

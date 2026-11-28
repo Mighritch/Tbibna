@@ -47,7 +47,7 @@ class Formation
     #[ODM\Field(type: "string", nullable: true)]
     private ?string $createdBy = null;
 
-    // Liste des identifiants (emails) des étudiants ayant mis cette formation en favori
+    // Liste des identifiants (emails) des utilisateurs (étudiants / médecins) ayant mis cette formation en favori
     #[ODM\Field(type: "collection")]
     private array $favorisBy = [];
 
