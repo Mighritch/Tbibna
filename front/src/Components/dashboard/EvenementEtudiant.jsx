@@ -8,12 +8,16 @@ import {
   ArrowUpDown,
   User as UserIcon,
   Heart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const fmt = (iso) =>
   iso
     ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })
     : "—";
+
+const ITEMS_PER_PAGE = 4;
 
 const TRIS = {
   date: { label: "Date (par défaut)", fn: null },
@@ -37,6 +41,7 @@ export default function EvenementsEtudiant() {
   const [sortBy, setSortBy] = useState("date");
   const [onlyFavoris, setOnlyFavoris] = useState(false);
   const [togglingIds, setTogglingIds] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +122,14 @@ export default function EvenementsEtudiant() {
     return list;
   }, [evenements, search, sortBy, onlyFavoris]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedEvenements = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filtered, safeCurrentPage]);
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -125,7 +138,10 @@ export default function EvenementsEtudiant() {
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <button
             type="button"
-            onClick={() => setOnlyFavoris((prev) => !prev)}
+            onClick={() => {
+              setOnlyFavoris((prev) => !prev);
+              setCurrentPage(1);
+            }}
             className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium shadow-sm transition ${
               onlyFavoris
                 ? "border-[#2A6B59] bg-[#2A6B59] text-white"
@@ -147,7 +163,10 @@ export default function EvenementsEtudiant() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Rechercher par titre..."
               className="w-full rounded-xl border border-[#E6E1D5] bg-white py-3 pl-9 pr-4 text-sm text-[#0F3D3E] shadow-sm outline-none transition focus:border-[#2A6B59]"
             />
@@ -160,7 +179,10 @@ export default function EvenementsEtudiant() {
             />
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full appearance-none rounded-xl border border-[#E6E1D5] bg-white py-3 pl-9 pr-4 text-sm text-[#0F3D3E] shadow-sm outline-none transition focus:border-[#2A6B59]"
             >
               {Object.entries(TRIS).map(([key, t]) => (
@@ -191,8 +213,8 @@ export default function EvenementsEtudiant() {
         </div>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((e) => (
+      <div className="grid gap-6 sm:grid-cols-2">
+        {paginatedEvenements.map((e) => (
           <article
             key={e.id}
             className="flex flex-col rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
@@ -241,17 +263,73 @@ export default function EvenementsEtudiant() {
                 <MapPin size={15} className="text-[#2A6B59]" /> {e.localisation}
               </li>
               <li className="flex items-center gap-2">
-                <Users size={15} className="text-[#2A6B59]" /> {e.nombreDeParticipant} participants
+                <Users size={15} className="text-[#2A6B59]" /> {e.nombreDeParticipant}{" "}
+                participants
               </li>
               {e.auteurNom && (
                 <li className="flex items-center gap-2">
-                  <UserIcon size={15} className="text-[#2A6B59]" /> Organisé par {e.auteurNom}
+                  <UserIcon size={15} className="text-[#2A6B59]" /> Organisé par{" "}
+                  {e.auteurNom}
                 </li>
               )}
             </ul>
           </article>
         ))}
       </div>
+
+      {/* Contrôles de pagination */}
+      {!loading && !error && totalPages > 1 && (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-[#E6E1D5] pt-6">
+          <p className="text-sm text-[#737873]">
+            Page <span className="font-semibold text-[#0F3D3E]">{safeCurrentPage}</span>{" "}
+            sur <span className="font-semibold text-[#0F3D3E]">{totalPages}</span> (
+            {filtered.length} évènement{filtered.length > 1 ? "s" : ""})
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((p) => Math.max(1, Math.min(p, totalPages) - 1))
+              }
+              disabled={safeCurrentPage === 1}
+              className="inline-flex items-center gap-1 rounded-xl border border-[#E6E1D5] bg-white px-3.5 py-2 text-sm font-medium text-[#0F3D3E] shadow-sm transition hover:border-[#2A6B59] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft size={16} /> Précédent
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, idx) => idx + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`h-9 w-9 rounded-xl text-sm font-semibold transition ${
+                      safeCurrentPage === page
+                        ? "bg-[#2A6B59] text-white shadow-sm"
+                        : "border border-[#E6E1D5] bg-white text-[#0F3D3E] hover:border-[#2A6B59]"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((p) => Math.min(totalPages, p + 1))
+              }
+              disabled={safeCurrentPage === totalPages}
+              className="inline-flex items-center gap-1 rounded-xl border border-[#E6E1D5] bg-white px-3.5 py-2 text-sm font-medium text-[#0F3D3E] shadow-sm transition hover:border-[#2A6B59] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Suivant <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

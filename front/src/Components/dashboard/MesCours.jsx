@@ -34,7 +34,7 @@ const FILES_BASE_URL = "";
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
 const LANGUES = ["Français", "Arabe", "Anglais"];
 
-const COURS_PAR_PAGE = 3;
+const COURS_PAR_PAGE = 4;
 
 function getContenuUrl(contenuCours) {
   if (!contenuCours) return null;
@@ -1171,7 +1171,7 @@ export default function MesCours() {
                 </div>
 
                 <p className="text-xs text-[#737873]">
-                  {coursFiltres.length} cours au total — 3 cours maximum par
+                  {coursFiltres.length} cours au total — 4 cours maximum par
                   page
                 </p>
               </div>

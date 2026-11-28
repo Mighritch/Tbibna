@@ -18,7 +18,7 @@ import {
 
 const NIVEAUX = ["Débutant", "Intermédiaire", "Avancé"];
 const LANGUES = ["Français", "Arabe", "Anglais"];
-const ITEMS_PER_PAGE = 3;
+const ITEMS_PER_PAGE = 4;
 
 export default function CoursEtudiant() {
   const [cours, setCours] = useState([]);

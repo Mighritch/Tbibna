@@ -16,6 +16,8 @@ import {
   Filter,
   Heart,
   UserCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const API = "http://localhost:8000/api/formations";
@@ -40,6 +42,85 @@ const toYMD = (d) => {
   return `${year}-${month}-${day}`;
 };
 
+const ITEMS_PER_PAGE = 4;
+
+// Génère la liste des pages à afficher (avec "..." si beaucoup de pages)
+const getPageNumbers = (current, total) => {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("...");
+  for (let p = start; p <= end; p++) pages.push(p);
+  if (end < total - 1) pages.push("...");
+  pages.push(total);
+  return pages;
+};
+
+function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
+  if (totalPages <= 1) return null;
+
+  const from = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const to = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  return (
+    <div className="mt-8 flex flex-col items-center justify-between gap-4 sm:flex-row">
+      <p className="text-sm text-[#737873]">
+        Affichage de <span className="font-semibold text-[#0F3D3E]">{from}</span>{" "}
+        à <span className="font-semibold text-[#0F3D3E]">{to}</span> sur{" "}
+        <span className="font-semibold text-[#0F3D3E]">{totalItems}</span>{" "}
+        formations
+      </p>
+
+      <nav className="flex items-center gap-1.5" aria-label="Pagination">
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          aria-label="Page précédente"
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E6E1D5] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] shadow-sm transition hover:bg-[#F3EFE6] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+        >
+          <ChevronLeft size={16} />
+          <span className="hidden sm:inline">Précédent</span>
+        </button>
+
+        {getPageNumbers(currentPage, totalPages).map((p, idx) =>
+          p === "..." ? (
+            <span key={`dots-${idx}`} className="px-1.5 text-[#737873]">
+              …
+            </span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              aria-current={p === currentPage ? "page" : undefined}
+              className={`h-9 min-w-[2.25rem] rounded-xl px-3 text-sm font-medium transition ${
+                p === currentPage
+                  ? "bg-[#0F3D3E] text-white shadow-sm"
+                  : "border border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#F3EFE6]"
+              }`}
+            >
+              {p}
+            </button>
+          )
+        )}
+
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          aria-label="Page suivante"
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E6E1D5] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] shadow-sm transition hover:bg-[#F3EFE6] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+        >
+          <span className="hidden sm:inline">Suivant</span>
+          <ChevronRight size={16} />
+        </button>
+      </nav>
+    </div>
+  );
+}
+
 export default function MesFormations() {
   const [formations, setFormations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +144,9 @@ export default function MesFormations() {
   // sélection via calendrier pour date début et date fin
   const [dateDebutFilter, setDateDebutFilter] = useState("");
   const [dateFinFilter, setDateFinFilter] = useState("");
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
 
   // références vers les inputs date pour ouvrir le calendrier au clic sur le bouton
   const dateDebutInputRef = useRef(null);
@@ -176,8 +260,31 @@ export default function MesFormations() {
     }
   };
 
+  // Chaque changement d'onglet / recherche / filtre ramène à la page 1
+  // (fait directement dans les gestionnaires d'événements, sans useEffect)
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const clearDateDebut = () => {
+    setDateDebutFilter("");
+    setCurrentPage(1);
+  };
+
+  const clearDateFin = () => {
+    setDateFinFilter("");
+    setCurrentPage(1);
+  };
+
   // Gestionnaires exclusifs entre Statut, Prix, Date début et Date fin
   const handleStatutChange = (value) => {
+    setCurrentPage(1);
     setStatutFilter(value);
     setSortPrix("");
     setDateDebutFilter("");
@@ -185,6 +292,7 @@ export default function MesFormations() {
   };
 
   const handleSortPrix = (value) => {
+    setCurrentPage(1);
     setSortPrix(value);
     setStatutFilter("");
     setDateDebutFilter("");
@@ -192,6 +300,7 @@ export default function MesFormations() {
   };
 
   const handleDateDebutChange = (value) => {
+    setCurrentPage(1);
     setDateDebutFilter(value);
     setStatutFilter("");
     setSortPrix("");
@@ -199,6 +308,7 @@ export default function MesFormations() {
   };
 
   const handleDateFinChange = (value) => {
+    setCurrentPage(1);
     setDateFinFilter(value);
     setStatutFilter("");
     setSortPrix("");
@@ -265,6 +375,19 @@ export default function MesFormations() {
     return 0;
   });
 
+  // 3. Pagination : 4 formations par page
+  const totalPages = Math.max(1, Math.ceil(sortedFormations.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedFormations = sortedFormations.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const hasActiveFilter = Boolean(
     activeTab !== "toutes" ||
       searchQuery ||
@@ -275,6 +398,7 @@ export default function MesFormations() {
   );
 
   const resetAllFilters = () => {
+    setCurrentPage(1);
     setActiveTab("toutes");
     setSearchQuery("");
     setStatutFilter("");
@@ -319,7 +443,7 @@ export default function MesFormations() {
           
             <button
               type="button"
-              onClick={() => setActiveTab("mine")}
+              onClick={() => handleTabChange("mine")}
               className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
                 activeTab === "mine"
                   ? "bg-[#0F3D3E] text-white shadow-sm"
@@ -331,7 +455,7 @@ export default function MesFormations() {
 
             <button
               type="button"
-              onClick={() => setActiveTab("autres")}
+              onClick={() => handleTabChange("autres")}
               className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
                 activeTab === "autres"
                   ? "bg-[#0F3D3E] text-white shadow-sm"
@@ -343,7 +467,7 @@ export default function MesFormations() {
 
             <button
               type="button"
-              onClick={() => setActiveTab("favoris")}
+              onClick={() => handleTabChange("favoris")}
               className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition ${
                 activeTab === "favoris"
                   ? "bg-[#0F3D3E] text-white shadow-sm"
@@ -375,14 +499,14 @@ export default function MesFormations() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Rechercher par titre..."
                 className="w-full rounded-xl border border-[#E6E1D5] bg-white py-2.5 pl-10 pr-10 text-sm text-[#0F3D3E] placeholder-[#737873] shadow-sm transition focus:border-[#0F3D3E] focus:outline-none"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => handleSearchChange("")}
                   aria-label="Effacer la recherche"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737873] hover:text-[#0F3D3E]"
                 >
@@ -471,12 +595,12 @@ export default function MesFormations() {
                       aria-label="Effacer la date de début"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDateDebutFilter("");
+                        clearDateDebut();
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.stopPropagation();
-                          setDateDebutFilter("");
+                          clearDateDebut();
                         }
                       }}
                       className="rounded-full p-0.5 text-[#737873] hover:bg-white hover:text-[#0F3D3E]"
@@ -522,12 +646,12 @@ export default function MesFormations() {
                       aria-label="Effacer la date de fin"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDateFinFilter("");
+                        clearDateFin();
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.stopPropagation();
-                          setDateFinFilter("");
+                          clearDateFin();
                         }
                       }}
                       className="rounded-full p-0.5 text-[#737873] hover:bg-white hover:text-[#0F3D3E]"
@@ -584,8 +708,9 @@ export default function MesFormations() {
             )}
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedFormations.map((f) => {
+          <>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {paginatedFormations.map((f) => {
               const statut = STATUT_UI[f.statut] || STATUT_UI.en_attente;
               const isAcceptee = f.statut === "acceptee";
 
@@ -712,6 +837,14 @@ export default function MesFormations() {
               );
             })}
           </div>
+
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            totalItems={sortedFormations.length}
+            onPageChange={handlePageChange}
+          />
+          </>
         )}
       </div>
 

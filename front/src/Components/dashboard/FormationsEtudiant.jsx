@@ -12,6 +12,8 @@ import {
   Target,
   User,
   Heart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const API = "http://localhost:8000/api/formations";
@@ -29,11 +31,93 @@ const toYMD = (d) => {
   return `${year}-${month}-${day}`;
 };
 
+const ITEMS_PER_PAGE = 4;
+
+// Génère la liste des pages à afficher (avec "..." si beaucoup de pages)
+const getPageNumbers = (current, total) => {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("...");
+  for (let p = start; p <= end; p++) pages.push(p);
+  if (end < total - 1) pages.push("...");
+  pages.push(total);
+  return pages;
+};
+
+function Pagination({ currentPage, totalPages, totalItems, onPageChange }) {
+  if (totalPages <= 1) return null;
+
+  const from = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const to = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  return (
+    <div className="mt-8 flex flex-col items-center justify-between gap-4 sm:flex-row">
+      <p className="text-sm text-[#737873]">
+        Affichage de <span className="font-semibold text-[#0F3D3E]">{from}</span>{" "}
+        à <span className="font-semibold text-[#0F3D3E]">{to}</span> sur{" "}
+        <span className="font-semibold text-[#0F3D3E]">{totalItems}</span>{" "}
+        formations
+      </p>
+
+      <nav className="flex items-center gap-1.5" aria-label="Pagination">
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          aria-label="Page précédente"
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E6E1D5] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] shadow-sm transition hover:bg-[#F3EFE6] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+        >
+          <ChevronLeft size={16} />
+          <span className="hidden sm:inline">Précédent</span>
+        </button>
+
+        {getPageNumbers(currentPage, totalPages).map((p, idx) =>
+          p === "..." ? (
+            <span key={`dots-${idx}`} className="px-1.5 text-[#737873]">
+              …
+            </span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              aria-current={p === currentPage ? "page" : undefined}
+              className={`h-9 min-w-[2.25rem] rounded-xl px-3 text-sm font-medium transition ${
+                p === currentPage
+                  ? "bg-[#0F3D3E] text-white shadow-sm"
+                  : "border border-[#E6E1D5] bg-white text-[#0F3D3E] hover:bg-[#F3EFE6]"
+              }`}
+            >
+              {p}
+            </button>
+          )
+        )}
+
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          aria-label="Page suivante"
+          className="inline-flex items-center gap-1 rounded-xl border border-[#E6E1D5] bg-white px-3 py-2 text-sm font-medium text-[#0F3D3E] shadow-sm transition hover:bg-[#F3EFE6] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+        >
+          <span className="hidden sm:inline">Suivant</span>
+          <ChevronRight size={16} />
+        </button>
+      </nav>
+    </div>
+  );
+}
+
 export default function FormationsEtudiant() {
   const [formations, setFormations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [togglingIds, setTogglingIds] = useState({});
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Filtres et tris
   const [searchQuery, setSearchQuery] = useState("");
@@ -162,22 +246,55 @@ export default function FormationsEtudiant() {
     }
   };
 
+  // Handlers qui remettent la page à 1
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleOnlyFavorisToggle = () => {
+    setOnlyFavoris((prev) => !prev);
+    setCurrentPage(1);
+  };
+
   const handleSortPrix = (value) => {
     setSortPrix(value);
     setDateDebutFilter("");
     setDateFinFilter("");
+    setCurrentPage(1);
   };
 
   const handleDateDebutChange = (value) => {
     setDateDebutFilter(value);
     setSortPrix("");
     setDateFinFilter("");
+    setCurrentPage(1);
   };
 
   const handleDateFinChange = (value) => {
     setDateFinFilter(value);
     setSortPrix("");
     setDateDebutFilter("");
+    setCurrentPage(1);
+  };
+
+  const handleClearDateDebut = () => {
+    setDateDebutFilter("");
+    setCurrentPage(1);
+  };
+
+  const handleClearDateFin = () => {
+    setDateFinFilter("");
+    setCurrentPage(1);
+  };
+
+  const resetAllFilters = () => {
+    setSearchQuery("");
+    setSortPrix("");
+    setDateDebutFilter("");
+    setDateFinFilter("");
+    setOnlyFavoris(false);
+    setCurrentPage(1);
   };
 
   const favorisCount = formations.filter((f) => f.isFavori).length;
@@ -222,17 +339,22 @@ export default function FormationsEtudiant() {
     return 0;
   });
 
+  // Pagination : 4 formations par page
+  const totalPages = Math.max(1, Math.ceil(sortedFormations.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedFormations = sortedFormations.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const hasActiveFilter = Boolean(
     searchQuery || sortPrix || dateDebutFilter || dateFinFilter || onlyFavoris
   );
-
-  const resetAllFilters = () => {
-    setSearchQuery("");
-    setSortPrix("");
-    setDateDebutFilter("");
-    setDateFinFilter("");
-    setOnlyFavoris(false);
-  };
 
   if (loading) {
     return (
@@ -265,14 +387,14 @@ export default function FormationsEtudiant() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Rechercher par titre..."
                 className="w-full rounded-xl border border-[#E6E1D5] bg-white py-2.5 pl-10 pr-10 text-sm text-[#0F3D3E] placeholder-[#737873] shadow-sm transition focus:border-[#0F3D3E] focus:outline-none"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => handleSearchChange("")}
                   aria-label="Effacer la recherche"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737873] hover:text-[#0F3D3E]"
                 >
@@ -285,7 +407,7 @@ export default function FormationsEtudiant() {
               {/* Filtre Favoris */}
               <button
                 type="button"
-                onClick={() => setOnlyFavoris((prev) => !prev)}
+                onClick={handleOnlyFavorisToggle}
                 className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-medium shadow-sm transition sm:w-auto ${
                   onlyFavoris
                     ? "border-rose-300 bg-rose-50 text-rose-700"
@@ -363,7 +485,7 @@ export default function FormationsEtudiant() {
                       tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDateDebutFilter("");
+                        handleClearDateDebut();
                       }}
                       className="rounded-full p-0.5 text-[#737873] hover:bg-white hover:text-[#0F3D3E]"
                     >
@@ -407,7 +529,7 @@ export default function FormationsEtudiant() {
                       tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDateFinFilter("");
+                        handleClearDateFin();
                       }}
                       className="rounded-full p-0.5 text-[#737873] hover:bg-white hover:text-[#0F3D3E]"
                     >
@@ -461,90 +583,99 @@ export default function FormationsEtudiant() {
             )}
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedFormations.map((f) => (
-              <div
-                key={f.id}
-                className="flex flex-col justify-between rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
-              >
-                <div>
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                      <CheckCircle2 size={12} /> Validée
-                    </span>
+          <>
+            <div className="grid gap-6 sm:grid-cols-2">
+              {paginatedFormations.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex flex-col justify-between rounded-2xl border border-[#E6E1D5] bg-white p-6 shadow-sm transition hover:shadow-md"
+                >
+                  <div>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        <CheckCircle2 size={12} /> Validée
+                      </span>
 
-                    <div className="flex items-center gap-2">
-                      {f.gratuit ? (
-                        <span className="rounded-full bg-[#EBF3F0] px-2.5 py-0.5 text-xs font-semibold text-[#2A6B59]">
-                          Gratuit
-                        </span>
-                      ) : (
-                        <span className="whitespace-nowrap rounded-full bg-[#FAF8F5] px-2.5 py-0.5 text-xs font-semibold text-[#0F3D3E]">
-                          {f.prix} DT
+                      <div className="flex items-center gap-2">
+                        {f.gratuit ? (
+                          <span className="rounded-full bg-[#EBF3F0] px-2.5 py-0.5 text-xs font-semibold text-[#2A6B59]">
+                            Gratuit
+                          </span>
+                        ) : (
+                          <span className="whitespace-nowrap rounded-full bg-[#FAF8F5] px-2.5 py-0.5 text-xs font-semibold text-[#0F3D3E]">
+                            {f.prix} DT
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleFavori(e, f)}
+                          disabled={Boolean(togglingIds[f.id])}
+                          aria-label={
+                            f.isFavori
+                              ? "Retirer des favoris"
+                              : "Ajouter aux favoris"
+                          }
+                          title={
+                            f.isFavori
+                              ? "Retirer des favoris"
+                              : "Ajouter aux favoris"
+                          }
+                          className={`rounded-full border p-1.5 transition ${
+                            f.isFavori
+                              ? "border-rose-200 bg-rose-50 text-rose-500 hover:bg-rose-100"
+                              : "border-[#E6E1D5] bg-white text-[#737873] hover:border-rose-200 hover:text-rose-500"
+                          }`}
+                        >
+                          <Heart
+                            size={15}
+                            className={f.isFavori ? "fill-rose-500" : ""}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <h3 className="line-clamp-2 font-semibold text-[#0F3D3E]">
+                      {f.titre}
+                    </h3>
+
+                    <p className="mt-2 line-clamp-3 text-sm text-[#737873]">
+                      {f.description}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#737873]">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock size={14} /> {f.duree}h
+                      </span>
+                      {f.dateDebut && (
+                        <span className="inline-flex items-center gap-1">
+                          <Calendar size={14} /> {formatDate(f.dateDebut)}
+                          {f.dateFin && ` → ${formatDate(f.dateFin)}`}
                         </span>
                       )}
-
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleFavori(e, f)}
-                        disabled={Boolean(togglingIds[f.id])}
-                        aria-label={
-                          f.isFavori
-                            ? "Retirer des favoris"
-                            : "Ajouter aux favoris"
-                        }
-                        title={
-                          f.isFavori
-                            ? "Retirer des favoris"
-                            : "Ajouter aux favoris"
-                        }
-                        className={`rounded-full border p-1.5 transition ${
-                          f.isFavori
-                            ? "border-rose-200 bg-rose-50 text-rose-500 hover:bg-rose-100"
-                            : "border-[#E6E1D5] bg-white text-[#737873] hover:border-rose-200 hover:text-rose-500"
-                        }`}
-                      >
-                        <Heart
-                          size={15}
-                          className={f.isFavori ? "fill-rose-500" : ""}
-                        />
-                      </button>
                     </div>
                   </div>
 
-                  <h3 className="line-clamp-2 font-semibold text-[#0F3D3E]">
-                    {f.titre}
-                  </h3>
-
-                  <p className="mt-2 line-clamp-3 text-sm text-[#737873]">
-                    {f.description}
-                  </p>
-
-                  <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#737873]">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock size={14} /> {f.duree}h
-                    </span>
-                    {f.dateDebut && (
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar size={14} /> {formatDate(f.dateDebut)}
-                        {f.dateFin && ` → ${formatDate(f.dateFin)}`}
-                      </span>
-                    )}
+                  <div className="mt-5 border-t border-[#E6E1D5] pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFormation(f)}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#082829]"
+                    >
+                      <Eye size={15} /> Consulter les détails
+                    </button>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="mt-5 border-t border-[#E6E1D5] pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFormation(f)}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3D3E] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#082829]"
-                  >
-                    <Eye size={15} /> Consulter les détails
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={sortedFormations.length}
+              onPageChange={handlePageChange}
+            />
+          </>
         )}
       </div>
 
